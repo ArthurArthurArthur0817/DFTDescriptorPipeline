@@ -65,6 +65,7 @@ You can use these functions directly in your own pipeline:
 ```python
 from descriptors.extractor import extract_homo_lumo, extract_dipole_moment, extract_polarizability
 from descriptors.sterimol import find_oh_bonds, find_c1_c2
+from descriptors.aggregate import generate_feature_table
 ```
 
 ---
