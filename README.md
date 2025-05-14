@@ -20,13 +20,17 @@ This project enables computational chemists to rapidly process `.log` files from
 
 ```
 DFTDescriptorPipeline/
-├── descriptors/              # Core Python modules
-│   ├── extractor.py          # HOMO/LUMO, dipole, polarizability extraction
-│   └── sterimol.py           # Anchor atom identification for Sterimol
-├── logfiles/                 # Example Gaussian log files
-├── notebooks/                # Example analysis notebooks
-├── requirements.txt          # Dependency list
-└── README.md                 # This file
+├── descriptors/                            # Core Python modules for descriptor extraction
+│   ├── extractor.py                        # Extracts HOMO/LUMO, dipole, and polarizability from .log files
+│   ├── sterimol.py                         # Identifies key atoms for Sterimol parameter calculation
+│   └── aggregate.py                        # Aggregates all descriptors into a feature table (DataFrame)
+├── logfiles/                               # Gaussian log files for descriptor parsing
+├── data/                                   # Experimental target values (e.g., ddG) in .xlsx format
+│   └── Heck_boronic_acid.xlsx              # Example ddG data for Heck reaction modeling
+├── notebooks/                              # Jupyter/Colab notebooks for running full workflow
+│   └── Colab_Demo_DFTDescriptorPipeline.ipynb   # End-to-end demo: extract → model → plot
+├── requirements.txt                        # Python dependency list for installation
+└── README.md                               # Project description and usage instructions
 ```
 
 ---
@@ -34,7 +38,7 @@ DFTDescriptorPipeline/
 ## 🛠️ Installation
 
 ```bash
-git clone https://github.com/yourusername/DFTDescriptorPipeline.git
+git clone https://github.com/peculab/DFTDescriptorPipeline.git
 cd DFTDescriptorPipeline
 pip install -r requirements.txt
 ```
@@ -65,6 +69,14 @@ from descriptors.sterimol import find_oh_bonds, find_c1_c2
 
 ---
 
+## 🧪 Run on Google Colab
+
+Click the badge below to run the example notebook on Colab:
+
+[Open In Colab](https://colab.research.google.com/drive/1xqdH8C0ic4U6Siti1Qpp9dsDFThUo1JP?usp=sharing)
+
+---
+
 ## 📊 Example Applications
 
 - Structure–reactivity modeling for boronic acids (Heck reaction)  
@@ -82,9 +94,3 @@ MIT License
 ## 👩‍🔬 Citation
 
 If you use this pipeline in your work, please cite the corresponding article in *Journal of Chemical Information and Modeling* (link will be added after acceptance).
-
-## 🧪 Run on Google Colab
-
-Click the badge below to run the example notebook on Colab:
-
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yourusername/DFTDescriptorPipeline/blob/main/notebooks/example_pipeline.ipynb)
