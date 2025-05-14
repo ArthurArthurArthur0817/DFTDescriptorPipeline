@@ -7,6 +7,8 @@ scikit-learn>=0.24
 jupyterlab>=3.0
 matplotlib>=3.3
 seaborn>=0.11
+jupyter-client<8.0
+notebook<7.0
 
 # Optional: If Sterimol uses RDKit (not in current code but may be extended)
 # rdkit-pypi>=2022.9.2
