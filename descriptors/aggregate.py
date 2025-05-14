@@ -2,7 +2,7 @@
 import os
 import pandas as pd
 from descriptors.extractor import extract_homo_lumo, extract_dipole_moment, extract_polarizability
-from descriptors.sterimol import extract_nbo_section, find_oh_bonds, find_c1_c2
+from descriptors.extractor import extract_nbo_section, find_oh_bonds, find_c1_c2
 
 def generate_feature_table(log_dir="logfiles"):
     rows = []
