@@ -1,0 +1,12 @@
+# Core libraries
+pandas>=1.1
+numpy>=1.19
+scikit-learn>=0.24
+
+# Optional: For notebook demonstration
+jupyterlab>=3.0
+matplotlib>=3.3
+seaborn>=0.11
+
+# Optional: If Sterimol uses RDKit (not in current code but may be extended)
+# rdkit-pypi>=2022.9.2
