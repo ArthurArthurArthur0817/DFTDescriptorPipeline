@@ -74,7 +74,7 @@ from descriptors.aggregate import generate_feature_table
 
 Click the badge below to run the example notebook on Colab:
 
-[Open In Colab](https://colab.research.google.com/drive/1xqdH8C0ic4U6Siti1Qpp9dsDFThUo1JP?usp=sharing)
+[Open In Colab](https://github.com/peculab/DFTDescriptorPipeline/blob/main/notebooks/Colab_Demo_DFTDescriptorPipeline.ipynb)
 
 ---
 
