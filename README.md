@@ -89,9 +89,3 @@ Click the badge below to run the example notebook on Colab:
 ## 📄 License
 
 MIT License
-
----
-
-## 👩‍🔬 Citation
-
-If you use this pipeline in your work, please cite the corresponding article in *Journal of Chemical Information and Modeling* (link will be added after acceptance).
