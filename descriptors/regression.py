@@ -38,3 +38,20 @@ def evaluate_combinations(data, target, feature_set):
         return result if result["r2_full"] > 0.7 else None
     except np.linalg.LinAlgError:
         return None  # 排除不可逆情況
+
+from itertools import combinations
+
+def search_best_models(data, features, target, max_features=5):
+    """
+    從給定特徵中搜尋最佳模型組合（依 R² 排序）
+    """
+    results = []
+
+    for k in range(1, max_features + 1):
+        for combo in combinations(features, k):
+            result = evaluate_combinations(data, target, list(combo))
+            if result:
+                results.append(result)
+
+    results.sort(key=lambda x: x['r2_full'], reverse=True)
+    return results
