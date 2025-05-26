@@ -1,3 +1,9 @@
+import pandas as pd
+import numpy as np
+from itertools import combinations
+from sklearn.preprocessing import StandardScaler
+from joblib import Parallel, delayed
+
 def prepare_data(path, features, target):
     """讀取 Excel 並標準化特徵欄位"""
     data = pd.read_excel(path)  # 改成讀取 .xlsx
