@@ -1,24 +1,60 @@
-# sterimol.py - Locate atoms and support Sterimol calculations
-import re
+def extract_last_standard_orientation(log_path):
+    import re
+    with open(log_path, "r") as f:
+        lines = f.readlines()
 
-def find_oh_bonds(nbo_section):
-    return [int(a) for a, _ in re.findall(r"BD \(\s*1\s*\)\s*O\s*(\d+)\s*-\s*H\s*(\d+)", nbo_section)]
+    geometries = []
+    block = []
+    reading = False
 
-def find_c1_c2(nbo_section, oh_atoms):
-    for a in oh_atoms:
-        c_candidates = re.findall(rf"BD \(\s*1\s*\)\s*C\s*(\d+)\s*-\s*O\s*{a}", nbo_section)
-        for c in map(int, c_candidates):
-            o_d_candidates = re.findall(rf"BD \(\s*[12]\s*\)\s*C\s*{c}\s*-\s*O\s*(\d+)", nbo_section)
-            for d in map(int, o_d_candidates):
-                e_candidates = re.findall(rf"BD \(\s*1\s*\)\s*C\s*(\d+)\s*-\s*C\s*{c}", nbo_section)
-                for e in map(int, e_candidates):
-                    bond_types = re.findall(r"BD \(\s*(1|2)\s*\)\s*(\w+)\s*(\d+)\s*-\s*(\w+)\s*(\d+)", nbo_section)
-                    bond_pairs = {}
-                    for bond_type, _, n1, _, n2 in bond_types:
-                        nums = frozenset([int(n1), int(n2)])
-                        bond_pairs.setdefault(nums, set()).add(bond_type)
-                    single_count = sum('1' in t for t in bond_pairs.values())
-                    double_count = sum('2' in t for t in bond_pairs.values())
-                    if single_count >= 2 and double_count >= 1:
-                        return c, e, a
-    return None, None, None
+    for line in lines:
+        if "Standard orientation" in line:
+            block = []
+            reading = True
+            continue
+        if reading:
+            if "-----" in line:
+                continue
+            if any(x in line for x in ["Center", "Atomic", "Number"]):
+                continue
+            if line.strip() == "":
+                if block:
+                    geometries.append(block)
+                    block = []
+                reading = False
+            else:
+                if re.match(r"^\s*\d+\s+\d+\s+\d+\s+[-+]?\d*\.\d+(?:[eE][-+]?\d+)?\s+[-+]?\d*\.\d+(?:[eE][-+]?\d+)?\s+[-+]?\d*\.\d+(?:[eE][-+]?\d+)?", line):
+                    block.append(line)
+                else:
+                    if block:
+                        geometries.append(block)
+                        block = []
+                    reading = False
+
+    if not geometries:
+        return None
+
+    last_geom = geometries[-1]
+    atoms = []
+    for line in last_geom:
+        parts = line.split()
+        try:
+            atomic_num = int(parts[1])
+            x, y, z = float(parts[3]), float(parts[4]), float(parts[5])
+            symbol = atomic_symbols.get(atomic_num, None)
+            if symbol is None:
+                print(f"Unknown atomic number {atomic_num} in {log_path}")
+                return None
+            atoms.append((symbol, x, y, z))
+        except Exception as e:
+            print(f"Parse error in {log_path}: {e}")
+            return None
+
+    return atoms
+
+def write_xyz(atom_list, filename):
+    with open(filename, "w") as f:
+        f.write(f"{len(atom_list)}\n")
+        f.write("Extracted from Gaussian log\n")
+        for atom in atom_list:
+            f.write(f"{atom[0]}  {atom[1]:.8f}  {atom[2]:.8f}  {atom[3]:.8f}\n")
