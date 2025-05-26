@@ -2,7 +2,7 @@
 import re
 import math         # ✅ 加這行
 import numpy as np
-from utils import parse_floats
+from descriptors.utils import parse_floats
 
 def extract_homo_lumo(log_file):
     with open(log_file, 'r', encoding='utf-8') as f:
@@ -164,12 +164,7 @@ def extract_coordinates(log_file, c1, c2):
         print("Error: Could not find coordinates for both C1 and C2.")
         return None, None, None
 
-# extractor.py
 def extract_nbo_charges(log_file, c1, c2, a):
-    if None in (c1, c2, a):
-        print(f"⚠️ extract_nbo_charges skipped: c1={c1}, c2={c2}, a={a}, log={log_file}")
-        return None, None, None, None
-
     with open(log_file, 'r', encoding='utf-8') as f:
         content = f.readlines()
 
@@ -180,8 +175,7 @@ def extract_nbo_charges(log_file, c1, c2, a):
             break
 
     if summary_index is None:
-        print(f"⚠️ 未找到 NBO 區塊於 {log_file}")
-        return None, None, None, None
+        raise ValueError(f"未找到 {log_file} 的 Summary of Natural Population Analysis 區塊")
 
     charges = {}
     for line in content[summary_index:]:
@@ -197,35 +191,49 @@ def extract_nbo_charges(log_file, c1, c2, a):
 
     return Ar_NBO_C1, Ar_NBO_C2, Ar_NBO_O1, Ar_NBO_O2
 
-
-
 def extract_frequencies(log_file):
     with open(log_file, 'r', encoding='utf-8') as f:
         content = f.readlines()
 
+    freq_block_start = None
+    for i in range(len(content)):
+        if re.search(r'\s+A\s+A\s+A', content[i]):
+            if "Frequencies --" in content[i+1]:
+                freq_block_start = i + 1
+                break
+
+    if freq_block_start is None:
+        raise ValueError(f"未找到 {log_file} 的 Frequencies 區塊")
+
     matched_frequencies = []
 
-    for i in range(len(content)):
+    i = freq_block_start
+    while i < len(content):
         if "Frequencies --" in content[i]:
-            try:
-                freqs = parse_floats(content[i])
-                red_masses = parse_floats(content[i + 1])
-                ir_intensities = parse_floats(content[i + 3])
+            freq_line = content[i]
+            red_mass_line = content[i + 1]
+            ir_inten_line = content[i + 3]
 
-                for f_val, m, ir in zip(freqs, red_masses, ir_intensities):
-                    matched_frequencies.append((f_val, ir))
-            except Exception as e:
-                print(f"⚠️ Failed to parse frequency block at line {i}: {e}")
-                continue
+            freqs = parse_floats(freq_line)
+            red_masses = parse_floats(red_mass_line)
+            ir_intensities = parse_floats(ir_inten_line)
+
+            for f, m, ir in zip(freqs, red_masses, ir_intensities):
+                if 1800 <= f <= 1900 and 10 <= m <= 11:
+                    matched_frequencies.append((f, ir))
+
+            i += 4
+        else:
+            i += 1
 
     if not matched_frequencies:
-        print(f"⚠️ No frequencies found in {log_file}")
-        return None, None
+        raise ValueError("未找到符合條件的頻率和紅外強度")
 
+    # 根據 IR 強度由大到小排序，選最強的
     matched_frequencies.sort(key=lambda x: x[1], reverse=True)
     Ar_v_C_O, Ar_I_C_O = matched_frequencies[0]
-    return Ar_I_C_O, Ar_v_C_O
 
+    return Ar_I_C_O, Ar_v_C_O
 
 def find_oh_bonds(nbo_section):
     """ 找出 BD (1) O a - H b 的鍵結，取得 O 和 H 的原子編號 """
