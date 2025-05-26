@@ -1,3 +1,5 @@
+from descriptors.utils import atomic_symbols
+
 def extract_last_standard_orientation(log_path):
     import re
     with open(log_path, "r") as f:
