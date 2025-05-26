@@ -1,4 +1,4 @@
-from descriptors.utils import atomic_symbols
+from utils import atomic_symbols
 
 def extract_last_standard_orientation(log_path):
     import re
