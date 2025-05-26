@@ -2,6 +2,7 @@
 import re
 import math         # ✅ 加這行
 import numpy as np
+from descriptors.utils import parse_floats
 
 def extract_homo_lumo(log_file):
     with open(log_file, 'r', encoding='utf-8') as f:
