@@ -28,4 +28,4 @@ from regression import prepare_data, search_best_models
 
 The regression model shows strong predictive performance:
 
-![Regression Plot](./regression_plot.png)
+![Regression Plot](./Regression_Plot.png)
