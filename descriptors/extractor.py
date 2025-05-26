@@ -199,45 +199,34 @@ def extract_frequencies(log_file):
     with open(log_file, 'r', encoding='utf-8') as f:
         content = f.readlines()
 
-    freq_block_start = None
-    for i in range(len(content)):
-        if re.search(r'\s+A\s+A\s+A', content[i]):
-            if "Frequencies --" in content[i+1]:
-                freq_block_start = i + 1
-                break
-
-    if freq_block_start is None:
-        raise ValueError(f"未找到 {log_file} 的 Frequencies 區塊")
-
     matched_frequencies = []
 
-    i = freq_block_start
-    while i < len(content):
+    for i in range(len(content)):
         if "Frequencies --" in content[i]:
-            freq_line = content[i]
-            red_mass_line = content[i + 1]
-            ir_inten_line = content[i + 3]
+            try:
+                freq_line = content[i]
+                red_mass_line = content[i + 1]
+                ir_inten_line = content[i + 3]
 
-            freqs = parse_floats(freq_line)
-            red_masses = parse_floats(red_mass_line)
-            ir_intensities = parse_floats(ir_inten_line)
+                freqs = parse_floats(freq_line)
+                red_masses = parse_floats(red_mass_line)
+                ir_intensities = parse_floats(ir_inten_line)
 
-            for f, m, ir in zip(freqs, red_masses, ir_intensities):
-                if 1800 <= f <= 1900 and 10 <= m <= 11:
-                    matched_frequencies.append((f, ir))
-
-            i += 4
-        else:
-            i += 1
+                for f, m, ir in zip(freqs, red_masses, ir_intensities):
+                    # 原條件：C=O 頻率範圍 & 適合的 reduced mass
+                    if 1800 <= f <= 1900 and 10 <= m <= 11:
+                        matched_frequencies.append((f, ir))
+            except Exception as e:
+                print(f"⚠️ Error parsing frequency block in {log_file} (line {i}): {e}")
+                continue
 
     if not matched_frequencies:
-        print(f"⚠️ No frequencies found in {log_file}")
+        print(f"⚠️ No matching C=O frequencies found in {log_file}")
         return None
 
     # 根據 IR 強度由大到小排序，選最強的
     matched_frequencies.sort(key=lambda x: x[1], reverse=True)
     Ar_v_C_O, Ar_I_C_O = matched_frequencies[0]
-
     return Ar_I_C_O, Ar_v_C_O
 
 def find_oh_bonds(nbo_section):
