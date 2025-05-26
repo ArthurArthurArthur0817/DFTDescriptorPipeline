@@ -23,3 +23,9 @@ sys.path.insert(0, "/content/DFTDescriptorPipeline/descriptors")
 
 from aggregate import generate_feature_table
 from regression import prepare_data, search_best_models
+```
+## 📊 Sample Output
+
+The regression model shows strong predictive performance:
+
+![Regression Plot](./regression_plot.png)
