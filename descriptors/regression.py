@@ -4,9 +4,8 @@ from itertools import combinations
 from sklearn.preprocessing import StandardScaler
 from joblib import Parallel, delayed
 
-def prepare_data(path, features, target):
-    """讀取 Excel 並標準化特徵欄位"""
-    data = pd.read_excel(path)  # 改成讀取 .xlsx
+def prepare_data(df, features, target):
+    """接收一個 DataFrame，並標準化特徵欄位"""
     data = data.dropna(subset=features + [target])
     scaler = StandardScaler()
     data[features] = scaler.fit_transform(data[features])
