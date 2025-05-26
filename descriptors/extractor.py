@@ -164,7 +164,8 @@ def extract_coordinates(log_file, c1, c2):
         print("Error: Could not find coordinates for both C1 and C2.")
         return None, None, None
 
-def extract_nbo_charges(log_file, c1, c2, a):
+def extract_nbo_charges(log_file, c1, c2, a):   
+
     with open(log_file, 'r', encoding='utf-8') as f:
         content = f.readlines()
 
@@ -188,6 +189,9 @@ def extract_nbo_charges(log_file, c1, c2, a):
     Ar_NBO_C2 = charges.get(f"C{c2}", None)
     Ar_NBO_O1 = charges.get(f"O{a-1}", None)
     Ar_NBO_O2 = charges.get(f"O{a}", None)
+
+    if a is None:
+        return None, None, None, None
 
     return Ar_NBO_C1, Ar_NBO_C2, Ar_NBO_O1, Ar_NBO_O2
 
@@ -229,7 +233,7 @@ def extract_frequencies(log_file):
     if not matched_frequencies:
         print(f"⚠️ No frequencies found in {log_file}")
         return None
-        
+
     # 根據 IR 強度由大到小排序，選最強的
     matched_frequencies.sort(key=lambda x: x[1], reverse=True)
     Ar_v_C_O, Ar_I_C_O = matched_frequencies[0]
