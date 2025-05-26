@@ -13,9 +13,6 @@ from morfeus.utils import get_radii
 from extractor import extract_nbo_charges, extract_coordinates, extract_nbo_values, extract_frequencies, extract_polarizability, extract_homo_lumo, extract_dipole_moment, extract_nbo_section, find_oh_bonds, find_c1_c2
 
 def generate_feature_table(log_folder, excel_path):
-    import pandas as pd
-    import os
-
     df = pd.read_excel(excel_path)
 
     for index, row in df.iterrows():
@@ -23,7 +20,6 @@ def generate_feature_table(log_folder, excel_path):
         log_file = os.path.join(log_folder, f"{ar}.log")
         print(f"➡️ 處理: {ar}.log")
 
-        # 預設值
         Ar_NBO_C1 = Ar_NBO_C2 = Ar_NBO_O1 = Ar_NBO_O2 = None
         Ar_v_C_O = Ar_I_C_O = None
         dipole_moment = avg_polar = homo = lumo = None
@@ -42,21 +38,19 @@ def generate_feature_table(log_folder, excel_path):
             nbo_content = extract_nbo_section(log_file)
 
             if nbo_content:
-                oh_atoms = find_oh_bonds(nbo_content)
+                oh_atoms = find_oh_bonds(nbo_content)  # optional
                 c1, c2, a, b, d, f, g = find_c1_c2(nbo_content, oh_atoms)
+                print(f"✅ Found C1: {c1}, C2: {c2}, A: {a},B: {b}, D: {d}, F: {f}, G: {g}")
                 Ar_c, Ar_e, Ar_a, Ar_b, Ar_d, Ar_f, Ar_g = c1, c2, a, b, d, f, g
 
-                if None not in (c1, c2, a):
-                    occupancy_C1_O, energy_C1_O, occupancy_C1_C2, energy_C1_C2 = extract_nbo_values(log_file, c1, c2, a)
-                    coord_C1, coord_C2, L_C1_C2 = extract_coordinates(log_file, c1, c2)
-                    Ar_NBO_C1, Ar_NBO_C2, Ar_NBO_O1, Ar_NBO_O2 = extract_nbo_charges(log_file, c1, c2, a)
-                    Ar_I_C_O, Ar_v_C_O = extract_frequencies(log_file)
-                else:
-                    print(f"⚠️ 找不到 C1/C2/A：{ar}.log")
-        except Exception as e:
-            print(f"❌ 錯誤於 {ar}.log: {e}")
+                occupancy_C1_O, energy_C1_O, occupancy_C1_C2, energy_C1_C2 = extract_nbo_values(log_file, c1, c2, a)
+                coord_C1, coord_C2, L_C1_C2 = extract_coordinates(log_file, c1, c2)
+                Ar_NBO_C1, Ar_NBO_C2, Ar_NBO_O1, Ar_NBO_O2 = extract_nbo_charges(log_file, c1, c2, a)
+                Ar_I_C_O, Ar_v_C_O = extract_frequencies(log_file)
 
-        # 寫入欄位
+        except Exception as e:
+            print(f"❌ 錯誤於 {log_file}: {e}")
+
         df.at[index, "Ar_NBO_C2"] = Ar_NBO_C2
         df.at[index, "Ar_NBO_=O"] = Ar_NBO_O1
         df.at[index, "Ar_NBO_-O"] = Ar_NBO_O2
@@ -67,6 +61,7 @@ def generate_feature_table(log_folder, excel_path):
         df.at[index, "Ar_LUMO"] = lumo
         df.at[index, "Ar_HOMO"] = homo
         df.at[index, "L_C1_C2"] = L_C1_C2
+
         df.at[index, "Ar_c"] = Ar_c
         df.at[index, "Ar_e"] = Ar_e
         df.at[index, "Ar_a"] = Ar_a

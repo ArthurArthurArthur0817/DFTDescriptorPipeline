@@ -167,7 +167,7 @@ def extract_coordinates(log_file, c1, c2):
 # extractor.py
 def extract_nbo_charges(log_file, c1, c2, a):
     if None in (c1, c2, a):
-        print(f"⚠️ extract_nbo_charges skipped due to invalid input: c1={c1}, c2={c2}, a={a}, log={log_file}")
+        print(f"⚠️ extract_nbo_charges skipped: c1={c1}, c2={c2}, a={a}, log={log_file}")
         return None, None, None, None
 
     with open(log_file, 'r', encoding='utf-8') as f:
@@ -180,7 +180,7 @@ def extract_nbo_charges(log_file, c1, c2, a):
             break
 
     if summary_index is None:
-        print(f"⚠️ 未找到 {log_file} 的 Summary of Natural Population Analysis 區塊")
+        print(f"⚠️ 未找到 NBO 區塊於 {log_file}")
         return None, None, None, None
 
     charges = {}
@@ -196,6 +196,7 @@ def extract_nbo_charges(log_file, c1, c2, a):
     Ar_NBO_O2 = charges.get(f"O{a}", None)
 
     return Ar_NBO_C1, Ar_NBO_C2, Ar_NBO_O1, Ar_NBO_O2
+
 
 
 def extract_frequencies(log_file):
