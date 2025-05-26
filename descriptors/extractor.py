@@ -164,8 +164,11 @@ def extract_coordinates(log_file, c1, c2):
         print("Error: Could not find coordinates for both C1 and C2.")
         return None, None, None
 
-def extract_nbo_charges(log_file, c1, c2, a):   
-
+def extract_nbo_charges(log_file, c1, c2, a):
+    """
+    Extract NBO charges for atoms C1, C2, O(a-1), O(a) from the Gaussian log file.
+    If atom labels are not found directly, search nearby indices for O atoms.
+    """
     with open(log_file, 'r', encoding='utf-8') as f:
         content = f.readlines()
 
@@ -176,22 +179,35 @@ def extract_nbo_charges(log_file, c1, c2, a):
             break
 
     if summary_index is None:
-        raise ValueError(f"未找到 {log_file} 的 Summary of Natural Population Analysis 區塊")
+        raise ValueError(f"❌ Cannot find NBO summary in {log_file}")
 
     charges = {}
     for line in content[summary_index:]:
-        match = re.match(r'\s*(\w+)\s+(\d+)\s+([-\d\.]+)', line)
+        match = re.match(r'\s*(\w+)\s+(\d+)\s+([\-\d\.]+)', line)
         if match:
             atom, num, charge = match.groups()
             charges[f"{atom}{num}"] = float(charge)
 
     Ar_NBO_C1 = charges.get(f"C{c1}", None)
     Ar_NBO_C2 = charges.get(f"C{c2}", None)
+
+    # 確保 O(a-1) 與 O(a) 能找得到，如果找不到，向前或向後搜尋附近的 O 原子
     Ar_NBO_O1 = charges.get(f"O{a-1}", None)
     Ar_NBO_O2 = charges.get(f"O{a}", None)
 
-    if a is None:
-        return None, None, None, None
+    if Ar_NBO_O1 is None:
+        for offset in range(-3, 4):
+            candidate = charges.get(f"O{a + offset}", None)
+            if candidate is not None:
+                Ar_NBO_O1 = candidate
+                break
+
+    if Ar_NBO_O2 is None:
+        for offset in range(-3, 4):
+            candidate = charges.get(f"O{a + offset}", None)
+            if candidate is not None:
+                Ar_NBO_O2 = candidate
+                break
 
     return Ar_NBO_C1, Ar_NBO_C2, Ar_NBO_O1, Ar_NBO_O2
 
