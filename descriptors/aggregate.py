@@ -1,12 +1,11 @@
-
 import os
 import pandas as pd
-from descriptors.extractor import (
+from extractor import (
     extract_polarizability, extract_homo_lumo, extract_dipole_moment,
     extract_nbo_section, extract_nbo_values, extract_coordinates,
     extract_nbo_charges, extract_frequencies, find_oh_bonds, find_c1_c2
 )
-from descriptors.sterimol import extract_last_standard_orientation, write_xyz
+from sterimol import extract_last_standard_orientation, write_xyz
 from morfeus import read_xyz, Sterimol
 from morfeus.utils import get_radii
 
