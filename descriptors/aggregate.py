@@ -42,7 +42,7 @@ def generate_feature_table(log_folder, excel_path):
                 occ_C1_O, ene_C1_O, occ_C1_C2, ene_C1_C2 = extract_nbo_values(log_file, c1, c2, a)
                 coord1, coord2, L_C1_C2 = extract_coordinates(log_file, c1, c2)
                 Ar_NBO_C1, Ar_NBO_C2, Ar_NBO_O1, Ar_NBO_O2 = extract_nbo_charges(log_file, c1, c2, a)
-                Ar_I_C_O, Ar_v_C_O = extract_frequencies(log_file)
+                freq_data = extract_frequencies(log_file)
                 if freq_data is not None:
                     Ar_I_C_O, Ar_v_C_O = freq_data
                 else:
