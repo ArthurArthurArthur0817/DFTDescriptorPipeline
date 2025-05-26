@@ -164,7 +164,12 @@ def extract_coordinates(log_file, c1, c2):
         print("Error: Could not find coordinates for both C1 and C2.")
         return None, None, None
 
+# extractor.py
 def extract_nbo_charges(log_file, c1, c2, a):
+    if None in (c1, c2, a):
+        print(f"⚠️ extract_nbo_charges skipped due to invalid input: c1={c1}, c2={c2}, a={a}, log={log_file}")
+        return None, None, None, None
+
     with open(log_file, 'r', encoding='utf-8') as f:
         content = f.readlines()
 
@@ -175,7 +180,8 @@ def extract_nbo_charges(log_file, c1, c2, a):
             break
 
     if summary_index is None:
-        raise ValueError(f"❌ Cannot find NBO summary in {log_file}")
+        print(f"⚠️ 未找到 {log_file} 的 Summary of Natural Population Analysis 區塊")
+        return None, None, None, None
 
     charges = {}
     for line in content[summary_index:]:
