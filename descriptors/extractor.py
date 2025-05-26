@@ -166,8 +166,8 @@ def extract_coordinates(log_file, c1, c2):
 
 def extract_nbo_charges(log_file, c1, c2, a):
     """
-    Extract NBO charges for atoms C1, C2, O(a-1), O(a) from the Gaussian log file.
-    If atom labels are not found directly, search nearby indices for O atoms.
+    Extract NBO charges for C1, C2, O(a-1), O(a). If a is None,
+    fallback to find two closest O atoms. No return of None—always tries to extract values.
     """
     with open(log_file, 'r', encoding='utf-8') as f:
         content = f.readlines()
@@ -182,34 +182,58 @@ def extract_nbo_charges(log_file, c1, c2, a):
         raise ValueError(f"❌ Cannot find NBO summary in {log_file}")
 
     charges = {}
+    o_charges = {}
+
     for line in content[summary_index:]:
-        match = re.match(r'\s*(\w+)\s+(\d+)\s+([\-\d\.]+)', line)
+        match = re.match(r'\s*(\w+)\s+(\d+)\s+([-\d\.]+)', line)
         if match:
             atom, num, charge = match.groups()
-            charges[f"{atom}{num}"] = float(charge)
+            key = f"{atom}{num}"
+            charges[key] = float(charge)
+            if atom == "O":
+                o_charges[int(num)] = float(charge)
 
-    Ar_NBO_C1 = charges.get(f"C{c1}", None)
-    Ar_NBO_C2 = charges.get(f"C{c2}", None)
+    Ar_NBO_C1 = charges.get(f"C{c1}", 0.0)
+    Ar_NBO_C2 = charges.get(f"C{c2}", 0.0)
 
-    # 確保 O(a-1) 與 O(a) 能找得到，如果找不到，向前或向後搜尋附近的 O 原子
-    Ar_NBO_O1 = charges.get(f"O{a-1}", None)
-    Ar_NBO_O2 = charges.get(f"O{a}", None)
+    Ar_NBO_O1 = None
+    Ar_NBO_O2 = None
 
-    if Ar_NBO_O1 is None:
-        for offset in range(-3, 4):
-            candidate = charges.get(f"O{a + offset}", None)
-            if candidate is not None:
-                Ar_NBO_O1 = candidate
-                break
+    if a is not None:
+        Ar_NBO_O1 = o_charges.get(a - 1, None)
+        Ar_NBO_O2 = o_charges.get(a, None)
 
-    if Ar_NBO_O2 is None:
-        for offset in range(-3, 4):
-            candidate = charges.get(f"O{a + offset}", None)
-            if candidate is not None:
-                Ar_NBO_O2 = candidate
-                break
+        # 嘗試 fallback ±3
+        if Ar_NBO_O1 is None:
+            for offset in range(-3, 4):
+                if offset == 0: continue
+                candidate = o_charges.get(a + offset, None)
+                if candidate is not None:
+                    Ar_NBO_O1 = candidate
+                    break
+
+        if Ar_NBO_O2 is None:
+            for offset in range(-3, 4):
+                if offset == 0: continue
+                candidate = o_charges.get(a + offset, None)
+                if candidate is not None:
+                    Ar_NBO_O2 = candidate
+                    break
+    else:
+        # 若 a 無法判斷，從全部 O 中挑選 charge 最高的兩個
+        sorted_o = sorted(o_charges.items(), key=lambda x: abs(x[1]), reverse=True)
+        if len(sorted_o) >= 2:
+            Ar_NBO_O1 = sorted_o[0][1]
+            Ar_NBO_O2 = sorted_o[1][1]
+        elif len(sorted_o) == 1:
+            Ar_NBO_O1 = sorted_o[0][1]
+            Ar_NBO_O2 = 0.0
+        else:
+            Ar_NBO_O1 = 0.0
+            Ar_NBO_O2 = 0.0
 
     return Ar_NBO_C1, Ar_NBO_C2, Ar_NBO_O1, Ar_NBO_O2
+
 
 def extract_frequencies(log_file):
     """
