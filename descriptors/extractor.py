@@ -227,8 +227,9 @@ def extract_frequencies(log_file):
             i += 1
 
     if not matched_frequencies:
-        raise ValueError("未找到符合條件的頻率和紅外強度")
-
+        print(f"⚠️ No frequencies found in {log_file}")
+        return None
+        
     # 根據 IR 強度由大到小排序，選最強的
     matched_frequencies.sort(key=lambda x: x[1], reverse=True)
     Ar_v_C_O, Ar_I_C_O = matched_frequencies[0]
