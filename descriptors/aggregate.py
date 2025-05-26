@@ -55,10 +55,9 @@ def generate_feature_table(log_folder, excel_path):
                 Ar_NBO_C1, Ar_NBO_C2, Ar_NBO_O1, Ar_NBO_O2 = extract_nbo_charges(log_file, c1, c2, a)
                 Ar_I_C_O, Ar_v_C_O = extract_frequencies(log_file)
 
-                xyz_path = os.path.join(log_folder, f"{ar}.xyz")
-                elements, coords = read_xyz(log_file.replace(".log", ".xyz"))
+                elements, coords = read_log(log_file)
                 exclude_atoms = [Ar_a, Ar_b, Ar_d]
-                write_xyz(xyz_path, elements, coords, exclude_atoms)
+                write_xyz(log_file.replace(".log", ".xyz"), elements, coords, exclude_atoms)
 
                 radii = Radius().get(elements)
                 sterimol = Sterimol(elements, coords, Ar_c, Ar_e, radii=radii)
