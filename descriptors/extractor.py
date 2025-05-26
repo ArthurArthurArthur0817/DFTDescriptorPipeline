@@ -165,10 +165,6 @@ def extract_coordinates(log_file, c1, c2):
         return None, None, None
 
 def extract_nbo_charges(log_file, c1, c2, a):
-    """
-    Extract NBO charges for C1, C2, O(a-1), O(a). If a is None,
-    fallback to find two closest O atoms. No return of None—always tries to extract values.
-    """
     with open(log_file, 'r', encoding='utf-8') as f:
         content = f.readlines()
 
@@ -182,102 +178,63 @@ def extract_nbo_charges(log_file, c1, c2, a):
         raise ValueError(f"❌ Cannot find NBO summary in {log_file}")
 
     charges = {}
-    o_charges = {}
-
     for line in content[summary_index:]:
         match = re.match(r'\s*(\w+)\s+(\d+)\s+([-\d\.]+)', line)
         if match:
             atom, num, charge = match.groups()
-            key = f"{atom}{num}"
-            charges[key] = float(charge)
-            if atom == "O":
-                o_charges[int(num)] = float(charge)
+            charges[f"{atom}{num}"] = float(charge)
 
-    Ar_NBO_C1 = charges.get(f"C{c1}", 0.0)
-    Ar_NBO_C2 = charges.get(f"C{c2}", 0.0)
-
-    Ar_NBO_O1 = None
-    Ar_NBO_O2 = None
-
-    if a is not None:
-        Ar_NBO_O1 = o_charges.get(a - 1, None)
-        Ar_NBO_O2 = o_charges.get(a, None)
-
-        # 嘗試 fallback ±3
-        if Ar_NBO_O1 is None:
-            for offset in range(-3, 4):
-                if offset == 0: continue
-                candidate = o_charges.get(a + offset, None)
-                if candidate is not None:
-                    Ar_NBO_O1 = candidate
-                    break
-
-        if Ar_NBO_O2 is None:
-            for offset in range(-3, 4):
-                if offset == 0: continue
-                candidate = o_charges.get(a + offset, None)
-                if candidate is not None:
-                    Ar_NBO_O2 = candidate
-                    break
-    else:
-        # 若 a 無法判斷，從全部 O 中挑選 charge 最高的兩個
-        sorted_o = sorted(o_charges.items(), key=lambda x: abs(x[1]), reverse=True)
-        if len(sorted_o) >= 2:
-            Ar_NBO_O1 = sorted_o[0][1]
-            Ar_NBO_O2 = sorted_o[1][1]
-        elif len(sorted_o) == 1:
-            Ar_NBO_O1 = sorted_o[0][1]
-            Ar_NBO_O2 = 0.0
-        else:
-            Ar_NBO_O1 = 0.0
-            Ar_NBO_O2 = 0.0
+    Ar_NBO_C1 = charges.get(f"C{c1}", None)
+    Ar_NBO_C2 = charges.get(f"C{c2}", None)
+    Ar_NBO_O1 = charges.get(f"O{a-1}", None)
+    Ar_NBO_O2 = charges.get(f"O{a}", None)
 
     return Ar_NBO_C1, Ar_NBO_C2, Ar_NBO_O1, Ar_NBO_O2
 
 
 def extract_frequencies(log_file):
-    """
-    Extracts vibrational frequency and IR intensity values from a Gaussian log file.
-    Specifically looks for C=O stretches (1800-1900 cm^-1, mass 10-11), but falls back to top IR peak.
-    Returns:
-        Ar_I_C_O: IR intensity
-        Ar_v_C_O: frequency
-    Raises:
-        ValueError if no frequencies found.
-    """
-    with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+    with open(log_file, 'r', encoding='utf-8') as f:
         content = f.readlines()
 
-    matched_frequencies = []
-    all_candidates = []
-
+    freq_block_start = None
     for i in range(len(content)):
+        if re.search(r'\s+A\s+A\s+A', content[i]):
+            if "Frequencies --" in content[i+1]:
+                freq_block_start = i + 1
+                break
+
+    if freq_block_start is None:
+        raise ValueError(f"未找到 {log_file} 的 Frequencies 區塊")
+
+    matched_frequencies = []
+
+    i = freq_block_start
+    while i < len(content):
         if "Frequencies --" in content[i]:
-            try:
-                freqs = parse_floats(content[i])
-                red_masses = parse_floats(content[i + 1])
-                ir_intensities = parse_floats(content[i + 3])
+            freq_line = content[i]
+            red_mass_line = content[i + 1]
+            ir_inten_line = content[i + 3]
 
-                for f_val, m_val, ir_val in zip(freqs, red_masses, ir_intensities):
-                    all_candidates.append((f_val, ir_val))
-                    if 1800 <= f_val <= 1900 and 10 <= m_val <= 11:
-                        matched_frequencies.append((f_val, ir_val))
+            freqs = parse_floats(freq_line)
+            red_masses = parse_floats(red_mass_line)
+            ir_intensities = parse_floats(ir_inten_line)
 
-            except Exception as e:
-                print(f"⚠️ Error parsing block at line {i} in {log_file}: {e}")
-                continue
+            for f, m, ir in zip(freqs, red_masses, ir_intensities):
+                if 1800 <= f <= 1900 and 10 <= m <= 11:
+                    matched_frequencies.append((f, ir))
 
-    if matched_frequencies:
-        matched_frequencies.sort(key=lambda x: x[1], reverse=True)
-        Ar_v_C_O, Ar_I_C_O = matched_frequencies[0]
-        return Ar_I_C_O, Ar_v_C_O
-    elif all_candidates:
-        print(f"⚠️ No freq matched strict C=O range in {log_file}, using strongest IR peak.")
-        all_candidates.sort(key=lambda x: x[1], reverse=True)
-        f, ir = all_candidates[0]
-        return ir, f
-    else:
-        raise ValueError(f"❌ No frequencies found in {log_file}")
+            i += 4
+        else:
+            i += 1
+
+    if not matched_frequencies:
+        print(f"⚠️ No frequencies found in {log_file}")
+        return None
+    # 根據 IR 強度由大到小排序，選最強的
+    matched_frequencies.sort(key=lambda x: x[1], reverse=True)
+    Ar_v_C_O, Ar_I_C_O = matched_frequencies[0]
+
+    return Ar_I_C_O, Ar_v_C_O
 
 def find_oh_bonds(nbo_section):
     """ 找出 BD (1) O a - H b 的鍵結，取得 O 和 H 的原子編號 """
