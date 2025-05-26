@@ -1,3 +1,8 @@
+# descriptors/extractor.py
+import re
+import math         # ✅ 加這行
+import numpy as np
+
 def extract_homo_lumo(log_file):
     with open(log_file, 'r', encoding='utf-8') as f:
         content = f.read()
