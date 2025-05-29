@@ -443,6 +443,33 @@ def plot_best_regression(df, best_model, savepath='Regression_Plot.png'):
     plt.savefig(savepath, bbox_inches='tight')
     plt.show()
 
+
+
+def report_index_problems(df, log_folder=None):
+    """
+    報告所有 index 欄位為 None/NaN 的分子，並存成 Excel。
+    """
+    index_cols = ["Ar_c", "Ar_e", "Ar_a", "Ar_b", "Ar_d", "Ar_f", "Ar_g"]
+    def is_any_nan_or_none(row):
+        return any((x is None) or (isinstance(x, float) and np.isnan(x)) for x in row[index_cols])
+    problem_rows = df[df.apply(is_any_nan_or_none, axis=1)]
+    if len(problem_rows) == 0:
+        print("✅ 沒有任何分子的 index 欄位為 None/NaN，全部解析正常！")
+    else:
+        print("❗以下分子提取時 atom index 有 None/NaN：\n")
+        print(problem_rows[["Ar"] + index_cols])
+        # 若沒有 log_file 欄，試著自動補齊
+        if log_folder is not None and "log_file" not in problem_rows.columns:
+            problem_rows = problem_rows.copy()
+            problem_rows["log_file"] = problem_rows["Ar"].apply(lambda ar: f"{log_folder}/{ar}.log")
+            print("\n對應 log_file：")
+            print(problem_rows[["Ar", "log_file"]])
+        # 匯出
+        problem_rows.to_excel("problem_index_report.xlsx", index=False)
+        print("\n已存為 problem_index_report.xlsx，方便人工追查！")
+
+
+
 # ============ 5. 封裝成一個主流程 =============
 
 def run_full_pipeline(log_folder, xlsx_path, target="ddG",
@@ -521,6 +548,8 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
     print(f"\n[STEP2] 加入 Sterimol 特徵")
     df = add_sterimol_to_df(df, log_folder)
     df.to_excel(output_path, index=False)
+
+    report_index_problems(df_final, log_folder)
 
     print(f"\n[STEP3] 進行回歸訓練與篩選最佳模型")
     feature_list = [
