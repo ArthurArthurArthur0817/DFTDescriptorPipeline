@@ -1,3 +1,21 @@
+# extractor_regr.py
+
+# ====== [Auto-install morfeus-ml if missing, and force restart Colab/Jupyter] ======
+import sys
+import subprocess
+
+def ensure_morfeus():
+    try:
+        import morfeus
+    except ImportError:
+        print("\n[自動安裝 morfeus-ml... 如下方顯示 Successfully installed，請重新執行此程式/Colab Cell！]\n")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "morfeus-ml"])
+        print("\n[已自動安裝 morfeus-ml，請「重新啟動並再次執行」你的程式/Notebook！]\n")
+        import os; os._exit(0)  # 強制退出，讓用戶重新執行
+
+ensure_morfeus()
+# ====== [END] ======
+
 import os
 import re
 import glob
