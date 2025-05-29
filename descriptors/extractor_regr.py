@@ -325,18 +325,25 @@ def add_sterimol_to_df(df, log_folder):
     for idx, row in df.iterrows():
         mol_name = str(row["Ar"])
         log_path = log_map.get(mol_name)
+        print(f"\n[Sterimol] [{mol_name}] log: {log_path}")
         if not log_path:
+            print("  [SKIP] 找不到 log 檔案")
             continue
         atoms = extract_last_standard_orientation(log_path)
         if not atoms:
+            print("  [SKIP] 無法提取 atoms")
             continue
-        exclude_atoms = [int(row["Ar_a"]), int(row["Ar_b"]), int(row["Ar_d"])]
-        atoms_to_keep = [a for i, a in enumerate(atoms) if (i + 1) not in exclude_atoms]
-        if len(atoms_to_keep) < 2:
+        if any(pd.isna(x) for x in [row["Ar_a"], row["Ar_b"], row["Ar_d"], row["Ar_c"], row["Ar_e"]]):
+            print(f"  [SKIP] Atoms 欄位有 NaN: Ar_a={row['Ar_a']}, Ar_b={row['Ar_b']}, Ar_d={row['Ar_d']}, Ar_c={row['Ar_c']}, Ar_e={row['Ar_e']}")
             continue
-        xyz_path = f"{mol_name}_filtered.xyz"
-        write_xyz(atoms_to_keep, xyz_path)
         try:
+            exclude_atoms = [int(row["Ar_a"]), int(row["Ar_b"]), int(row["Ar_d"])]
+            atoms_to_keep = [a for i, a in enumerate(atoms) if (i + 1) not in exclude_atoms]
+            if len(atoms_to_keep) < 2:
+                print("  [SKIP] atoms_to_keep < 2")
+                continue
+            xyz_path = f"{mol_name}_filtered.xyz"
+            write_xyz(atoms_to_keep, xyz_path)
             atom1 = int(row["Ar_c"])
             atom2 = int(row["Ar_e"])
             elements, coords = read_xyz(xyz_path)
@@ -346,7 +353,9 @@ def add_sterimol_to_df(df, log_folder):
             df.at[idx, "Ar_Ster_L"] = sterimol.L_value
             df.at[idx, "Ar_Ster_B1"] = sterimol.B_1_value
             df.at[idx, "Ar_Ster_B5"] = sterimol.B_5_value
+            print(f"  [OK] Sterimol: L={sterimol.L_value}, B1={sterimol.B_1_value}, B5={sterimol.B_5_value}")
         except Exception as e:
+            print(f"  [ERROR] Sterimol 計算失敗: {e}")
             continue
     return df
 
@@ -429,54 +438,89 @@ def plot_best_regression(df, best_model, savepath='Regression_Plot.png'):
 
 def run_full_pipeline(log_folder, xlsx_path, target="ddG",
                       output_path="final_output.xlsx", plot_path='Regression_Plot.png'):
-    # [1] 參數提取
+    print(f"\n[STEP1] 讀取 Excel：{xlsx_path}")
     df = pd.read_excel(xlsx_path)
     for index, row in df.iterrows():
         ar = row["Ar"]
         log_file = os.path.join(log_folder, f"{ar}.log")
+        print(f"\n==== [{index+1}/{len(df)}] [{ar}] 處理 log: {log_file} ====")
         if not os.path.exists(log_file):
+            print(f"  [SKIP] 找不到 log 檔案：{log_file}")
             continue
-        avg_polar = extract_polarizability(log_file)
-        homo, lumo = extract_homo_lumo(log_file)
-        dipole_moment = extract_dipole_moment(log_file)
-        nbo_content = extract_nbo_section(log_file)
-        Ar_c,Ar_e,Ar_a=0,0,0
-        if nbo_content:
-            oh_atoms = find_oh_bonds(nbo_content)
-            c1, c2, a ,b, d, f, g= find_c1_c2(nbo_content, oh_atoms)
-            Ar_c, Ar_e, Ar_a ,Ar_b,Ar_d,Ar_f,Ar_g= c1, c2, a, b, d, f, g
-            if c1 and c2 and a:
-                occupancy_C1_O, energy_C1_O, occupancy_C1_C2, energy_C1_C2 = extract_nbo_values(log_file, c1, c2, a)
-                Ar_NBO_C1, Ar_NBO_C2, Ar_NBO_O1, Ar_NBO_O2 = extract_nbo_charges(log_file, c1, c2, a)
-                Ar_I_C_O, Ar_v_C_O = extract_frequencies(log_file,Ar_c,Ar_d)
-                coord_C1, coord_C2, L_C1_C2 = extract_coordinates(log_file, c1, c2)
-        # 填入DataFrame
-        df.at[index, "Ar_NBO_C2"] = Ar_NBO_C2
-        df.at[index, "Ar_NBO_=O"] = Ar_NBO_O1
-        df.at[index, "Ar_NBO_-O"] = Ar_NBO_O2
-        df.at[index, "Ar_v_C=O"] = Ar_v_C_O
-        df.at[index, "Ar_I_C=O"] = Ar_I_C_O
-        df.at[index, "Ar_dp"] = dipole_moment
-        df.at[index, "Ar_polar"] = avg_polar
-        df.at[index, "Ar_LUMO"] = lumo
-        df.at[index, "Ar_HOMO"] = homo
-        df.at[index, "L_C1_C2"] = L_C1_C2
-        df.at[index, "Ar_c"] = Ar_c
-        df.at[index, "Ar_e"] = Ar_e
-        df.at[index, "Ar_a"] = Ar_a
-        df.at[index, "Ar_b"] = Ar_b
-        df.at[index, "Ar_d"] = Ar_d
-        df.at[index, "Ar_f"] = Ar_f
-        df.at[index, "Ar_g"] = Ar_g
+
+        try:
+            avg_polar = extract_polarizability(log_file)
+            print(f"  polarizability: {avg_polar}")
+            homo, lumo = extract_homo_lumo(log_file)
+            print(f"  HOMO: {homo}, LUMO: {lumo}")
+            dipole_moment = extract_dipole_moment(log_file)
+            print(f"  dipole: {dipole_moment}")
+            nbo_content = extract_nbo_section(log_file)
+            print(f"  nbo_section: {'ok' if nbo_content else 'none'}")
+            Ar_c = Ar_e = Ar_a = None
+            Ar_NBO_C2 = Ar_NBO_O1 = Ar_NBO_O2 = Ar_v_C_O = Ar_I_C_O = L_C1_C2 = None
+            Ar_b = Ar_d = Ar_f = Ar_g = None
+            if nbo_content:
+                oh_atoms = find_oh_bonds(nbo_content)
+                c1, c2, a, b, d, f, g = find_c1_c2(nbo_content, oh_atoms)
+                Ar_c, Ar_e, Ar_a, Ar_b, Ar_d, Ar_f, Ar_g = c1, c2, a, b, d, f, g
+                print(f"  atom index: c={c1}, e={c2}, a={a}, b={b}, d={d}, f={f}, g={g}")
+                if c1 and c2 and a:
+                    try:
+                        occupancy_C1_O, energy_C1_O, occupancy_C1_C2, energy_C1_C2 = extract_nbo_values(log_file, c1, c2, a)
+                        print(f"  NBO values: {occupancy_C1_O}, {energy_C1_O}, {occupancy_C1_C2}, {energy_C1_C2}")
+                    except Exception as e:
+                        print(f"  [NBO values] 失敗: {e}")
+                    try:
+                        Ar_NBO_C1, Ar_NBO_C2, Ar_NBO_O1, Ar_NBO_O2 = extract_nbo_charges(log_file, c1, c2, a)
+                        print(f"  NBO charges: C1={Ar_NBO_C1}, C2={Ar_NBO_C2}, O1={Ar_NBO_O1}, O2={Ar_NBO_O2}")
+                    except Exception as e:
+                        print(f"  [NBO charges] 失敗: {e}")
+                    try:
+                        Ar_I_C_O, Ar_v_C_O = extract_frequencies(log_file, Ar_c, Ar_d)
+                        print(f"  frequencies: I_C_O={Ar_I_C_O}, v_C_O={Ar_v_C_O}")
+                    except Exception as e:
+                        print(f"  [Frequencies] 失敗: {e}")
+                    try:
+                        coord_C1, coord_C2, L_C1_C2 = extract_coordinates(log_file, c1, c2)
+                        print(f"  C1, C2, L_C1_C2: {coord_C1}, {coord_C2}, {L_C1_C2}")
+                    except Exception as e:
+                        print(f"  [Coordinates] 失敗: {e}")
+
+            df.at[index, "Ar_NBO_C2"] = Ar_NBO_C2
+            df.at[index, "Ar_NBO_=O"] = Ar_NBO_O1
+            df.at[index, "Ar_NBO_-O"] = Ar_NBO_O2
+            df.at[index, "Ar_v_C=O"] = Ar_v_C_O
+            df.at[index, "Ar_I_C=O"] = Ar_I_C_O
+            df.at[index, "Ar_dp"] = dipole_moment
+            df.at[index, "Ar_polar"] = avg_polar
+            df.at[index, "Ar_LUMO"] = lumo
+            df.at[index, "Ar_HOMO"] = homo
+            df.at[index, "L_C1_C2"] = L_C1_C2
+            df.at[index, "Ar_c"] = Ar_c
+            df.at[index, "Ar_e"] = Ar_e
+            df.at[index, "Ar_a"] = Ar_a
+            df.at[index, "Ar_b"] = Ar_b
+            df.at[index, "Ar_d"] = Ar_d
+            df.at[index, "Ar_f"] = Ar_f
+            df.at[index, "Ar_g"] = Ar_g
+        except Exception as e:
+            print(f"[ERROR] 處理 {ar} 時發生錯誤: {e}")
+            continue
+
     df.to_excel("output.xlsx", index=False)
-    # [2] Sterimol
+    print(f"\n[STEP2] 加入 Sterimol 特徵")
     df = add_sterimol_to_df(df, log_folder)
     df.to_excel(output_path, index=False)
-    # [3] Regression
-    feature_list = ['Ar_NBO_C2',	'Ar_NBO_=O'	,'Ar_NBO_-O', 'Ar_v_C=O'	,'Ar_I_C=O'	,'Ar_dp','L_C1_C2',
-                    'Ar_polar','Ar_LUMO','Ar_HOMO','Ar_Ster_L','Ar_Ster_B1','Ar_Ster_B5']
+
+    print(f"\n[STEP3] 進行回歸訓練與篩選最佳模型")
+    feature_list = [
+        'Ar_NBO_C2', 'Ar_NBO_=O', 'Ar_NBO_-O', 'Ar_v_C=O', 'Ar_I_C=O', 'Ar_dp', 'L_C1_C2',
+        'Ar_polar', 'Ar_LUMO', 'Ar_HOMO', 'Ar_Ster_L', 'Ar_Ster_B1', 'Ar_Ster_B5'
+    ]
     data = prepare_data(output_path, feature_list, target)
     results = search_best_models(data, feature_list, target, max_features=5, r2_threshold=0.8, n_jobs=4)
     best_model = sorted(results, key=lambda x: x['r2_full'], reverse=True)[0]
     plot_best_regression(data, best_model, plot_path)
+    print(f"\n[STEP4] 分析完成！")
     return df, results, best_model
