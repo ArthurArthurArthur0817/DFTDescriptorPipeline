@@ -312,7 +312,6 @@ def write_xyz(atom_list, filename):
             f.write(f"{atom[0]}  {atom[1]:.8f}  {atom[2]:.8f}  {atom[3]:.8f}\n")
 
 def add_sterimol_to_df(df, log_folder):
-    def add_sterimol_to_df(df, log_folder):
     try:
         from morfeus import read_xyz, Sterimol
         from morfeus.utils import get_radii
