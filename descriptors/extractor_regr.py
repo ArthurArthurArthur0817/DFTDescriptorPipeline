@@ -333,10 +333,16 @@ def add_sterimol_to_df(df, log_folder):
         if not atoms:
             print("  [SKIP] 無法提取 atoms")
             continue
-        if any(pd.isna(x) for x in [row["Ar_a"], row["Ar_b"], row["Ar_d"], row["Ar_c"], row["Ar_e"]]):
-            print(f"  [SKIP] Atoms 欄位有 NaN: Ar_a={row['Ar_a']}, Ar_b={row['Ar_b']}, Ar_d={row['Ar_d']}, Ar_c={row['Ar_c']}, Ar_e={row['Ar_e']}")
-            continue
+
+        # ===== 調整：允許部分 index None，但明確報出並設 None =====
         try:
+            if any(pd.isna(x) for x in [row["Ar_a"], row["Ar_b"], row["Ar_d"], row["Ar_c"], row["Ar_e"]]):
+                print(f"  [WARN] Atoms 欄位有 NaN: Ar_a={row['Ar_a']}, Ar_b={row['Ar_b']}, Ar_d={row['Ar_d']}, Ar_c={row['Ar_c']}, Ar_e={row['Ar_e']}，此分子 sterimol 設 None")
+                df.at[idx, "Ar_Ster_L"] = None
+                df.at[idx, "Ar_Ster_B1"] = None
+                df.at[idx, "Ar_Ster_B5"] = None
+                continue
+
             exclude_atoms = [int(row["Ar_a"]), int(row["Ar_b"]), int(row["Ar_d"])]
             atoms_to_keep = [a for i, a in enumerate(atoms) if (i + 1) not in exclude_atoms]
             if len(atoms_to_keep) < 2:
@@ -356,6 +362,9 @@ def add_sterimol_to_df(df, log_folder):
             print(f"  [OK] Sterimol: L={sterimol.L_value}, B1={sterimol.B_1_value}, B5={sterimol.B_5_value}")
         except Exception as e:
             print(f"  [ERROR] Sterimol 計算失敗: {e}")
+            df.at[idx, "Ar_Ster_L"] = None
+            df.at[idx, "Ar_Ster_B1"] = None
+            df.at[idx, "Ar_Ster_B5"] = None
             continue
     return df
 
