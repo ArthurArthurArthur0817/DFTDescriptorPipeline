@@ -549,7 +549,7 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
     df = add_sterimol_to_df(df, log_folder)
     df.to_excel(output_path, index=False)
 
-    report_index_problems(df_final, log_folder)
+    report_index_problems(df, log_folder)
 
     print(f"\n[STEP3] 進行回歸訓練與篩選最佳模型")
     feature_list = [
