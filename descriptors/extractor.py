@@ -1,308 +1,145 @@
-# descriptors/extractor.py
+import os
 import re
-import math         # ✅ 加這行
-import numpy as np
-from utils import parse_floats
+import glob
+import pandas as pd
+from morfeus import read_xyz, Sterimol
+from morfeus.utils import get_radii
 
-def extract_homo_lumo(log_file):
-    with open(log_file, 'r', encoding='utf-8') as f:
-        content = f.read()
-
-    # 找到所有 SCF Density Population analysis 的部分
-    matches = re.findall(r"Population.*?SCF [Dd]ensity.*?(\s+Alpha.*?)\n\s*Condensed", content, re.DOTALL)
-
-    if not matches:
-        print("SCF Density Population analysis not found.")
-        return None, None
-
-    # 取最後一次出現的 SCF Density 來確保是最新的
-    scf_section = matches[-1]
-
-    # 解析 Alpha occ. 和 Alpha virt.
-    energies_alpha = [re.findall(r"([-+]?\d*\.\d+|\d+)", s_part) for s_part in scf_section.split("Alpha virt.", 1)]
-    if len(energies_alpha) == 2:
-        occupied_energies_alpha, unoccupied_energies_alpha = [list(map(float, e)) for e in energies_alpha]
-
-        # 提取 HOMO 和 LUMO
-        homo_alpha = max(occupied_energies_alpha) if occupied_energies_alpha else None
-        lumo_alpha = min(unoccupied_energies_alpha) if unoccupied_energies_alpha else None
-
-        return homo_alpha, lumo_alpha
-
-    print("HOMO/LUMO energies could not be extracted.")
-    return None, None
-
-def extract_dipole_moment(log_file):
-    with open(log_file, 'r', encoding='utf-8') as f:
-        content = f.read()
-
-    # 找到所有 Dipole moment 的部分
-    matches = re.findall(r"Dipole moment \(field-independent basis, Debye\):.*?(X=.*?Tot=.*?)\n", content, re.DOTALL)
-
-    if not matches:
-        print("Dipole moment not found.")
-        return None
-
-    # 取最後一次出現的 Dipole moment 數據
-    last_dipole_section = matches[-1]
-
-    # 提取 Tot 的數值
-    tot_match = re.search(r"Tot=\s*([-+]?\d*\.\d+|\d+)", last_dipole_section)
-    if tot_match:
-        return float(tot_match.group(1))
-
-    print("Total Dipole moment could not be extracted.")
-    return None
-
-def extract_polarizability(log_file):
-    with open(log_file, 'r', encoding='utf-8') as f:
-        content = f.read()
-
-    # 查找最後一次出現的 "Exact polarizability:" 及其後的數字
-    matches = re.findall(r"Exact polarizability:\s+([-+]?\d*\.\d+|\d+)\s+([-+]?\d*\.\d+|\d+)\s+([-+]?\d*\.\d+|\d+)\s+([-+]?\d*\.\d+|\d+)\s+([-+]?\d*\.\d+|\d+)\s+([-+]?\d*\.\d+|\d+)", content)
-
-    if not matches:
-        print("Exact polarizability not found.")
-        return None
-
-    # 取最後一次出現的數據
-    last_polarizability = matches[-1]
-
-    # 提取第一個、第三個和第六個數值並計算平均值
-    values = [float(last_polarizability[i]) for i in [0, 2, 5]]
-    avg_polarizability = sum(values) / len(values)
-
-    return avg_polarizability
-
-def extract_nbo_section(log_file):
-    """ 讀取 log 檔並提取 NBO Summary 區塊 """
-    with open(log_file, 'r', encoding='utf-8') as f:
-        content = f.read()
-
-    match = re.search(r"Natural Bond Orbitals \(Summary\):(.*?)(-+\n)", content, re.DOTALL)
-    if not match:
-        print("NBO summary section not found.")
-        return None
-
-    return match.group(1)
+# 常見元素對應表
+atomic_symbols = {
+    1: 'H', 6: 'C', 7: 'N', 8: 'O', 9: 'F', 15: 'P', 16: 'S', 17: 'Cl', 35: 'Br', 53: 'I'
+}
 
 
-#=============================================================================================================================
+def extract_last_standard_orientation(log_path):
+    """
+    解析 log 檔，提取最後一組 Standard orientation 幾何資訊
+    """
+    with open(log_path, "r") as f:
+        lines = f.readlines()
 
+    geometries = []
+    block = []
+    reading = False
 
-import re
-
-def extract_nbo_values(log_file, c1, c2, a):
-    """ 提取 Occupancy 與 Energy 值 """
-    with open(log_file, 'r', encoding='utf-8') as f:
-        content = f.read()
-
-    match = re.search(r"Natural Bond Orbitals \(Summary\):(.*?)-{30,}", content, re.DOTALL)
-    if not match:
-        print("NBO Summary section not found.")
-        return None
-
-    nbo_section = match.group(1)
-
-    bond_patterns = {
-        "C1-O": rf"BD \(   1\) C\s+{c1}\s+-\s+O\s+{a}\s+([\d\.]+)\s+([-\d\.]+)",
-        "C1-C2": rf"BD \(   1\) C\s+{c2}\s+-\s+C\s+{c1}\s+([\d\.]+)\s+([-\d\.]+)"
-    }
-
-    # 初始化變數
-    occupancy_C1_O = occupancy_C1_C2 = None
-    energy_C1_O = energy_C1_C2 = None
-
-    for key, pattern in bond_patterns.items():
-        match = re.search(pattern, nbo_section)
-        if match:
-            if key == "C1-O":
-                occupancy_C1_O = float(match.group(1))
-                energy_C1_O = float(match.group(2))
-            elif key == "C1-C2":
-                occupancy_C1_C2 = float(match.group(1))
-                energy_C1_C2 = float(match.group(2))
-
-    return occupancy_C1_O, energy_C1_O, occupancy_C1_C2, energy_C1_C2
-
-def extract_coordinates(log_file, c1, c2):
-    """ 提取 C1, C2 的座標並計算歐幾里得距離 """
-    coordinates = {}
-    inside_standard_orientation = False
-
-    with open(log_file, 'r') as file:
-        for line in file:
-            if "Standard orientation" in line:
-                inside_standard_orientation = True
+    for line in lines:
+        if "Standard orientation" in line:
+            block = []
+            reading = True
+            continue
+        if reading:
+            if "-----" in line:
                 continue
-            if inside_standard_orientation:
-                if "----" in line:
-                    continue
+            if any(x in line for x in ["Center", "Atomic", "Number"]):
+                continue
+            if line.strip() == "":
+                if block:
+                    geometries.append(block)
+                    block = []
+                reading = False
+            else:
+                if re.match(r"^\s*\d+\s+\d+\s+\d+\s+[-+]?\d*\.\d+", line):
+                    block.append(line)
+                else:
+                    if block:
+                        geometries.append(block)
+                        block = []
+                    reading = False
 
-                parts = line.split()
+    if not geometries:
+        return None
 
-                if len(parts) == 6 and parts[0].isdigit() and parts[1].isdigit():
-                    center_number = int(parts[0])
-                    atomic_number = int(parts[1])
-                    x, y, z = map(float, parts[3:])
+    atoms = []
+    for line in geometries[-1]:
+        parts = line.split()
+        try:
+            atomic_num = int(parts[1])
+            x, y, z = float(parts[3]), float(parts[4]), float(parts[5])
+            symbol = atomic_symbols.get(atomic_num, None)
+            if symbol is None:
+                print(f"Unknown atomic number {atomic_num} in {log_path}")
+                return None
+            atoms.append((symbol, x, y, z))
+        except Exception as e:
+            print(f"Parse error in {log_path}: {e}")
+            return None
 
-                    if atomic_number == 6:
-                        coordinates[center_number] = (x, y, z)
-
-    if c1 in coordinates and c2 in coordinates:
-        x1, y1, z1 = coordinates[c1]
-        x2, y2, z2 = coordinates[c2]
-        distance = math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2)
-
-        # 座標與距離結果存儲為變數
-        coord_C1 = (x1, y1, z1)
-        coord_C2 = (x2, y2, z2)
-        euclidean_distance = distance
-
-        return coord_C1, coord_C2, euclidean_distance
-    else:
-        print("Error: Could not find coordinates for both C1 and C2.")
-        return None, None, None
-
-def extract_nbo_charges(log_file, c1, c2, a):
-    with open(log_file, 'r', encoding='utf-8') as f:
-        content = f.readlines()
-
-    summary_index = None
-    for i in range(len(content) - 1, -1, -1):
-        if "Summary of Natural Population Analysis" in content[i]:
-            summary_index = i
-            break
-
-    if summary_index is None:
-        raise ValueError(f"未找到 {log_file} 的 Summary of Natural Population Analysis 區塊")
-
-    charges = {}
-    for line in content[summary_index:]:
-        match = re.match(r'\s*(\w+)\s+(\d+)\s+([-\d\.]+)', line)
-        if match:
-            atom, num, charge = match.groups()
-            charges[f"{atom}{num}"] = float(charge)
-
-    Ar_NBO_C1 = charges.get(f"C{c1}", None)
-    Ar_NBO_C2 = charges.get(f"C{c2}", None)
-    Ar_NBO_O1 = charges.get(f"O{a-1}", None)
-    Ar_NBO_O2 = charges.get(f"O{a}", None)
-
-    return Ar_NBO_C1, Ar_NBO_C2, Ar_NBO_O1, Ar_NBO_O2
-
-def extract_frequencies(log_file):
-    with open(log_file, 'r', encoding='utf-8') as f:
-        content = f.readlines()
-
-    freq_block_start = None
-    for i in range(len(content)):
-        if re.search(r'\s+A\s+A\s+A', content[i]):
-            if "Frequencies --" in content[i+1]:
-                freq_block_start = i + 1
-                break
-
-    if freq_block_start is None:
-        raise ValueError(f"未找到 {log_file} 的 Frequencies 區塊")
-
-    matched_frequencies = []
-
-    i = freq_block_start
-    while i < len(content):
-        if "Frequencies --" in content[i]:
-            freq_line = content[i]
-            red_mass_line = content[i + 1]
-            ir_inten_line = content[i + 3]
-
-            freqs = parse_floats(freq_line)
-            red_masses = parse_floats(red_mass_line)
-            ir_intensities = parse_floats(ir_inten_line)
-
-            for f, m, ir in zip(freqs, red_masses, ir_intensities):
-                if 1800 <= f <= 1900 and 10 <= m <= 11:
-                    matched_frequencies.append((f, ir))
-
-            i += 4
-        else:
-            i += 1
-
-    if not matched_frequencies:
-        raise ValueError("未找到符合條件的頻率和紅外強度")
-
-    # 根據 IR 強度由大到小排序，選最強的
-    matched_frequencies.sort(key=lambda x: x[1], reverse=True)
-    Ar_v_C_O, Ar_I_C_O = matched_frequencies[0]
-
-    return Ar_I_C_O, Ar_v_C_O
-
-def find_oh_bonds(nbo_section):
-    """ 找出 BD (1) O a - H b 的鍵結，取得 O 和 H 的原子編號 """
-    oh_bonds = re.findall(r"BD \(\s*1\s*\)\s*O\s*(\d+)\s*-\s*H\s*(\d+)", nbo_section)
-
-    if not oh_bonds:
-        print("No O-H bonds found.")
-    return [(int(a), int(b)) for a, b in oh_bonds]
-
-def find_c1_c2(nbo_section, oh_bond_atoms):
-    for a,b in oh_bond_atoms:
-        c_candidates = re.findall(rf"BD \(\s*1\s*\)\s*C\s*(\d+)\s*-\s*O\s*{a}", nbo_section)
-
-        for c in c_candidates:
-            c = int(c)
-            o_d_candidates = re.findall(rf"BD \(\s*[12]\s*\)\s*C\s*{c}\s*-\s*O\s*(\d+)", nbo_section)
-
-            for d in o_d_candidates:
-                d = int(d)
-                e_candidates = re.findall(rf"BD \(\s*1\s*\)\s*C\s*(\d+)\s*-\s*C\s*{c}", nbo_section)
-
-                for e in e_candidates:
-                    e = int(e)
-
-                    # 搜尋與 e 相連的鍵結
-                    bond_types = re.findall(rf"BD \(\s*(1|2)\s*\)\s*(\w+)\s*(\d+)\s*-\s*(\w+)\s*(\d+)", nbo_section)
-
-                    single_bonds = []
-                    double_bonds = []
-                    bond_pairs = {}
-                    e_neighbors = []
-
-                    for bond_type, atom1, num1, atom2, num2 in bond_types:
-                        num1, num2 = int(num1), int(num2)
-
-                        # 只記錄與 e 有關的鍵
-                        if num1 == e or num2 == e:
-                            other = num2 if num1 == e else num1
-                            e_neighbors.append((bond_type, other))
-
-                            bond_pair = frozenset([num1, num2])
-                            if bond_pair not in bond_pairs:
-                                bond_pairs[bond_pair] = set()
-                            bond_pairs[bond_pair].add(bond_type)
-
-                    # 統計單鍵雙鍵數量
-                    single_count = sum("1" in types for types in bond_pairs.values())
-                    double_count = sum("2" in types for types in bond_pairs.values())
-
-                    if single_count >= 2 and double_count >= 1:
-                        # 進一步找出 f 與 g
-                        f, g = None, None
-                        single_neighbors = [n for t, n in e_neighbors if t == "1"]
-                        double_neighbors = [n for t, n in e_neighbors if t == "2"]
-
-                        for neighbor in single_neighbors:
-                            if f is None:
-                                f = neighbor
-                            elif g is None and neighbor != f:
-                                g = neighbor
-
-                        for neighbor in double_neighbors:
-                            if g is None or neighbor == f:
-                                g = neighbor
-
-                        print(f"Found C1: {c}, C2: {e}, A: {a},B: {b}, D: {d}, F: {f}, G: {g}")
-                        return c, e, a, b, d, f, g
-
-    return None, None, None, None, None, None, None
+    return atoms
 
 
-#=============================================================================================================================
+def write_xyz(atom_list, filename):
+    """
+    將原子座標寫入 XYZ 檔案
+    """
+    with open(filename, "w") as f:
+        f.write(f"{len(atom_list)}\n")
+        f.write("Extracted from Gaussian log\n")
+        for atom in atom_list:
+            f.write(f"{atom[0]}  {atom[1]:.8f}  {atom[2]:.8f}  {atom[3]:.8f}\n")
+
+
+def compute_sterimol_parameters(excel_path, log_folder):
+    """
+    對每個分子計算 Sterimol 參數並回寫至 Excel。
+    
+    Args:
+        excel_path (str): 包含 Ar, Ar_c, Ar_e 等欄位的 Excel 路徑
+        log_folder (str): .log 檔所在資料夾
+
+    Returns:
+        str: 儲存的結果 Excel 檔案路徑
+    """
+    df = pd.read_excel(excel_path)
+
+    # 建立欄位
+    df["Ar_Ster_L"] = None
+    df["Ar_Ster_B1"] = None
+    df["Ar_Ster_B5"] = None
+
+    log_files = glob.glob(os.path.join(log_folder, "*.log"))
+    log_map = {os.path.basename(f).replace(".log", ""): f for f in log_files}
+
+    for idx, row in df.iterrows():
+        mol_name = str(row["Ar"])
+        log_path = log_map.get(mol_name)
+
+        if not log_path:
+            print(f"❌ {mol_name}.log not found, skipping.")
+            continue
+
+        atoms = extract_last_standard_orientation(log_path)
+        if not atoms:
+            print(f"⚠️ {mol_name}: No geometry found.")
+            continue
+
+        try:
+            exclude_atoms = [int(row["Ar_a"]), int(row["Ar_b"]), int(row["Ar_d"])]
+            atoms_to_keep = [a for i, a in enumerate(atoms) if (i + 1) not in exclude_atoms]
+
+            if len(atoms_to_keep) < 2:
+                print(f"⚠️ {mol_name}: Too few atoms after exclusion.")
+                continue
+
+            xyz_path = f"{mol_name}_filtered.xyz"
+            write_xyz(atoms_to_keep, xyz_path)
+
+            atom1 = int(row["Ar_c"])
+            atom2 = int(row["Ar_e"])
+
+            elements, coords = read_xyz(xyz_path)
+            radii = get_radii(elements, radii_type="bondi")
+            radii = [1.09 if r == 1.20 else r for r in radii]  # 修正半徑過大問題
+
+            sterimol = Sterimol(elements, coords, atom1, atom2, radii=radii)
+            df.at[idx, "Ar_Ster_L"] = sterimol.L_value
+            df.at[idx, "Ar_Ster_B1"] = sterimol.B_1_value
+            df.at[idx, "Ar_Ster_B5"] = sterimol.B_5_value
+            print(f"✅ {mol_name}: L={sterimol.L_value:.3f}, B1={sterimol.B_1_value:.3f}, B5={sterimol.B_5_value:.3f}")
+
+        except Exception as e:
+            print(f"❌ Error computing sterimol for {mol_name}: {e}")
+
+    output_path = "updated_data.xlsx"
+    df.to_excel(output_path, index=False)
+    print(f"✅ Sterimol 計算完成，已儲存至：{output_path}")
+    return output_path

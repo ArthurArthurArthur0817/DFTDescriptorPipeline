@@ -4,17 +4,23 @@ from itertools import combinations
 from sklearn.preprocessing import StandardScaler
 from joblib import Parallel, delayed
 
-def prepare_data(df, features, target):
-    """接收一個 DataFrame，並標準化特徵欄位"""
-    data = df.dropna(subset=features + [target])
+def prepare_data(path, features, target):
+    """
+    讀取 Excel 並標準化特徵欄位。
+    """
+    data = pd.read_excel(path)
+    data = data.dropna(subset=features + [target])
     scaler = StandardScaler()
     data[features] = scaler.fit_transform(data[features])
     return data
 
+
 def compute_loocv_metrics(X, y):
-    """利用影響矩陣計算 Q²、R²、RMSE"""
+    """
+    使用影響矩陣進行 LOOCV，計算 Q²、R²、RMSE。
+    """
     n = X.shape[0]
-    X_design = np.hstack([np.ones((n, 1)), X])  # 加上截距
+    X_design = np.hstack([np.ones((n, 1)), X])  # 加入截距
     XtX_inv = np.linalg.inv(X_design.T @ X_design)
     beta = XtX_inv @ X_design.T @ y
     H = X_design @ XtX_inv @ X_design.T
@@ -34,6 +40,7 @@ def compute_loocv_metrics(X, y):
         "intercept": beta[0]
     }
 
+
 def evaluate_combinations(data, target, feature_set):
     X = data[feature_set].values
     y = data[target].values
@@ -42,21 +49,19 @@ def evaluate_combinations(data, target, feature_set):
         result["features"] = feature_set
         return result if result["r2_full"] > 0.7 else None
     except np.linalg.LinAlgError:
-        return None  # 排除不可逆情況
+        return None
 
-from itertools import combinations
 
-def search_best_models(data, features, target, max_features=5):
+def search_best_models(data, features, target, max_features=5, r2_threshold=0.8, n_jobs=-1):
     """
-    從給定特徵中搜尋最佳模型組合（依 R² 排序）
+    測試所有特徵組合，篩選出表現優異的模型。
     """
-    results = []
-
+    all_results = []
     for k in range(1, max_features + 1):
-        for combo in combinations(features, k):
-            result = evaluate_combinations(data, target, list(combo))
-            if result:
-                results.append(result)
-
-    results.sort(key=lambda x: x['r2_full'], reverse=True)
-    return results
+        combs = list(combinations(features, k))
+        print(f" 測試 {k} 個特徵組合：共 {len(combs)} 種")
+        results = Parallel(n_jobs=n_jobs)(
+            delayed(evaluate_combinations)(data, target, list(c)) for c in combs
+        )
+        all_results.extend([res for res in results if res is not None])
+    return sorted(all_results, key=lambda x: x["q2_loocv"], reverse=True)
