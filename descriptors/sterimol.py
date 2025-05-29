@@ -1,4 +1,12 @@
-from utils import atomic_symbols
+import os
+import pandas as pd
+from morfeus import read_xyz, sterimol
+
+# Atomic number to symbol mapping
+atomic_symbols = {
+    1: 'H', 5: 'B', 6: 'C', 7: 'N', 8: 'O', 9: 'F',
+    15: 'P', 16: 'S', 17: 'Cl', 35: 'Br', 53: 'I'
+}
 
 def extract_last_standard_orientation(log_path):
     import re
@@ -60,3 +68,43 @@ def write_xyz(atom_list, filename):
         f.write("Extracted from Gaussian log\n")
         for atom in atom_list:
             f.write(f"{atom[0]}  {atom[1]:.8f}  {atom[2]:.8f}  {atom[3]:.8f}\n")
+
+def compute_sterimol_parameters(excel_path, log_folder):
+    df = pd.read_excel(excel_path)
+    L_vals, B1_vals, B5_vals = [], [], []
+
+    for i, row in df.iterrows():
+        compound = row['Ar']
+        log_path = os.path.join(log_folder, f"{compound}.log")
+        atoms = extract_last_standard_orientation(log_path)
+
+        if atoms is None:
+            print(f"Sterimol error on {compound}: invalid geometry")
+            L_vals.append(None)
+            B1_vals.append(None)
+            B5_vals.append(None)
+            continue
+
+        xyz_path = os.path.join(log_folder, f"{compound}.xyz")
+        write_xyz(atoms, xyz_path)
+
+        try:
+            mol = read_xyz(xyz_path)
+            L, B1, B5 = sterimol(mol, 1, 2)  # Assuming atom 1 and 2 as bond axis
+            L_vals.append(L)
+            B1_vals.append(B1)
+            B5_vals.append(B5)
+        except Exception as e:
+            print(f"Sterimol error on {compound}: {e}")
+            L_vals.append(None)
+            B1_vals.append(None)
+            B5_vals.append(None)
+
+    df["Ar_Ster_L"] = L_vals
+    df["Ar_Ster_B1"] = B1_vals
+    df["Ar_Ster_B5"] = B5_vals
+
+    output_path = os.path.join(log_folder, "updated_data.xlsx")
+    df.to_excel(output_path, index=False)
+    print(f"✅ Sterimol 計算完成，已儲存至：{output_path}")
+    return output_path
