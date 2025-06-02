@@ -31,7 +31,7 @@ This user manual will guide you through four practical examples using DFTDescrip
   If not, add the following cell at the top:
   ```python
   !pip install pandas numpy openpyxl scikit-learn matplotlib
-````
+  ```
 
 ---
 
