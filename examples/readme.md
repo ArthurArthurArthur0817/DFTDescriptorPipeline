@@ -13,7 +13,7 @@ This repository includes four real-world case studies that illustrate how to use
 
 ---
 
-### [1. Indigo Photoswitches: N,N'-Diaryl](examples/indigo_diaryl/)
+### [1. Indigo Photoswitches: N,N'-Diaryl](indigo_diaryl/)
 
 * Predict Z→E isomerization barriers for symmetric N,N'-diaryl indigo derivatives.
 * Uses electronic descriptors to achieve strong model performance.
@@ -21,7 +21,7 @@ This repository includes four real-world case studies that illustrate how to use
 
 ---
 
-### [2. Indigo Photoswitches: N-Aryl-N'-Alkyl](examples/indigo_aryl_alkyl/)
+### [2. Indigo Photoswitches: N-Aryl-N'-Alkyl](indigo_aryl_alkyl/)
 
 * Model isomerization barriers for unsymmetrical N-aryl-N'-alkyl indigo switches.
 * Combines steric (Sterimol L) and electronic descriptors for improved accuracy.
@@ -29,7 +29,7 @@ This repository includes four real-world case studies that illustrate how to use
 
 ---
 
-### [3. Azoarene Photoswitches](examples/azoarene/)
+### [3. Azoarene Photoswitches](azoarene/)
 
 * Predict thermal isomerization rates of substituted azoarenes.
 * Employs both geometric (bond lengths) and electronic features.
@@ -37,7 +37,7 @@ This repository includes four real-world case studies that illustrate how to use
 
 ---
 
-### [4. Heck Boronic Acids](examples/heck_boronic_acids/)
+### [4. Heck Boronic Acids](heck_boronic_acids/)
 
 * Predict reaction yields for para- and meta-substituted boronic acids in Heck coupling.
 * Features include dipole moment, polarizability, LUMO energy, and IR intensity.
