@@ -445,11 +445,11 @@ def search_best_models(data, features, target, max_features=5, r2_threshold=0.8,
     return sorted(all_results, key=lambda x: x["q2_loocv"], reverse=True)
 
 # ============ 4. Regression Plot ============
-def plot_best_regression(df, best_model, savepath='Regression_Plot.png'):
+def plot_best_regression(target, df, best_model, savepath='Regression_Plot.png'):
     X_columns = best_model['features']
     coefficients = np.array(best_model['coefficients'])
     intercept = best_model['intercept']
-    y_actual = df['ddG']
+    y_actual = df[target]
     X_values = df[X_columns].values
     y_pred = np.dot(X_values, coefficients) + intercept
     fig, ax = plt.subplots(figsize=(8, 7))
@@ -587,6 +587,6 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
     data = prepare_data(output_path, feature_list, target)
     results = search_best_models(data, feature_list, target, max_features=5, r2_threshold=0.8, n_jobs=4)
     best_model = sorted(results, key=lambda x: x['r2_full'], reverse=True)[0]
-    plot_best_regression(data, best_model, plot_path)
+    plot_best_regression(target, data, best_model, plot_path)
     print(f"\n[STEP4] 分析完成！")
     return df, results, best_model
