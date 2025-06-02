@@ -89,45 +89,73 @@ def find_oh_bonds(nbo_section):
     return [(int(a), int(b)) for a, b in oh_bonds]
 
 def find_c1_c2(nbo_section, oh_bond_atoms):
+    last_found = (None, None, None, None, None, None, None)
+
     for a, b in oh_bond_atoms:
         c_candidates = re.findall(rf"BD \(\s*1\s*\)\s*C\s*(\d+)\s*-\s*O\s*{a}", nbo_section)
+
         for c in c_candidates:
             c = int(c)
             o_d_candidates = re.findall(rf"BD \(\s*[12]\s*\)\s*C\s*{c}\s*-\s*O\s*(\d+)", nbo_section)
+
             for d in o_d_candidates:
                 d = int(d)
                 e_candidates = re.findall(rf"BD \(\s*1\s*\)\s*C\s*(\d+)\s*-\s*C\s*{c}", nbo_section)
+
                 for e in e_candidates:
                     e = int(e)
+
+                    # 搜尋與 e 相連的鍵結
                     bond_types = re.findall(rf"BD \(\s*(1|2)\s*\)\s*(\w+)\s*(\d+)\s*-\s*(\w+)\s*(\d+)", nbo_section)
-                    single_bonds = []
-                    double_bonds = []
+
                     bond_pairs = {}
                     e_neighbors = []
+
                     for bond_type, atom1, num1, atom2, num2 in bond_types:
                         num1, num2 = int(num1), int(num2)
+
+                        # 只記錄與 e 有關的鍵
                         if num1 == e or num2 == e:
                             other = num2 if num1 == e else num1
                             e_neighbors.append((bond_type, other))
+
                             bond_pair = frozenset([num1, num2])
                             if bond_pair not in bond_pairs:
                                 bond_pairs[bond_pair] = set()
                             bond_pairs[bond_pair].add(bond_type)
+
+                    # 統計單鍵雙鍵數量
                     single_count = sum("1" in types for types in bond_pairs.values())
                     double_count = sum("2" in types for types in bond_pairs.values())
+
+                    # 記錄目前找到的值，即使不符合條件也存下來
+                    last_found = (c, e, a, b, d, None, None)
+
                     if single_count >= 2 and double_count >= 1:
+                        # 進一步找出 f 與 g
                         f, g = None, None
                         single_neighbors = [n for t, n in e_neighbors if t == "1"]
                         double_neighbors = [n for t, n in e_neighbors if t == "2"]
+
                         for neighbor in single_neighbors:
                             if f is None:
                                 f = neighbor
                             elif g is None and neighbor != f:
                                 g = neighbor
+
                         for neighbor in double_neighbors:
                             if g is None or neighbor == f:
                                 g = neighbor
+
+                        print(f"Found C1: {c}, C2: {e}, A: {a}, B: {b}, D: {d}, F: {f}, G: {g}")
                         return c, e, a, b, d, f, g
+
+    # 如果整個迴圈結束沒找到符合條件的，回傳最後找到的值
+    if last_found[0] is not None:
+        print(f"[WARN] No C1-C2 pairs with the required bonding pattern found, returning last found values: {last_found}")
+        return last_found
+
+    # 完全沒找到任何組合
     return None, None, None, None, None, None, None
 
 def extract_nbo_values(log_file, c1, c2, a):
