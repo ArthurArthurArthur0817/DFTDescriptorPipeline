@@ -8,10 +8,10 @@ def ensure_morfeus():
     try:
         import morfeus
     except ImportError:
-        print("\n[自動安裝 morfeus-ml... 如下方顯示 Successfully installed，請重新執行此程式/Colab Cell！]\n")
+        print("\n[Auto-installing morfeus-ml... If you see Successfully installed below, please RESTART and rerun this script/Colab cell!]\n")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "morfeus-ml"])
-        print("\n[已自動安裝 morfeus-ml，請「重新啟動並再次執行」你的程式/Notebook！]\n")
-        import os; os._exit(0)  # 強制退出，讓用戶重新執行
+        print("\n[Auto-installed morfeus-ml. Please RESTART and rerun your script/Notebook!]\n")
+        import os; os._exit(0)  # Force exit for user to restart
 
 ensure_morfeus()
 # ====== [END] ======
@@ -29,14 +29,14 @@ from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 
-# 若用到 morfeus 需裝
+# If using morfeus, need to install it
 try:
     from morfeus import read_xyz, Sterimol
     from morfeus.utils import get_radii
 except ImportError:
     pass
 
-# ============ 1. 參數擷取 (log + xlsx) ============
+# ============ 1. Parameter Extraction (log + xlsx) ============
 
 def extract_homo_lumo(log_file):
     with open(log_file, 'r', encoding='utf-8') as f:
@@ -105,7 +105,7 @@ def find_c1_c2(nbo_section, oh_bond_atoms):
                 for e in e_candidates:
                     e = int(e)
 
-                    # 搜尋與 e 相連的鍵結
+                    # Search for bonds connected to e
                     bond_types = re.findall(rf"BD \(\s*(1|2)\s*\)\s*(\w+)\s*(\d+)\s*-\s*(\w+)\s*(\d+)", nbo_section)
 
                     bond_pairs = {}
@@ -114,7 +114,7 @@ def find_c1_c2(nbo_section, oh_bond_atoms):
                     for bond_type, atom1, num1, atom2, num2 in bond_types:
                         num1, num2 = int(num1), int(num2)
 
-                        # 只記錄與 e 有關的鍵
+                        # Only record bonds related to e
                         if num1 == e or num2 == e:
                             other = num2 if num1 == e else num1
                             e_neighbors.append((bond_type, other))
@@ -124,15 +124,15 @@ def find_c1_c2(nbo_section, oh_bond_atoms):
                                 bond_pairs[bond_pair] = set()
                             bond_pairs[bond_pair].add(bond_type)
 
-                    # 統計單鍵雙鍵數量
+                    # Count single and double bonds
                     single_count = sum("1" in types for types in bond_pairs.values())
                     double_count = sum("2" in types for types in bond_pairs.values())
 
-                    # 記錄目前找到的值，即使不符合條件也存下來
+                    # Always keep the last found result even if it does not match conditions
                     last_found = (c, e, a, b, d, None, None)
 
                     if single_count >= 2 and double_count >= 1:
-                        # 進一步找出 f 與 g
+                        # Further find f and g
                         f, g = None, None
                         single_neighbors = [n for t, n in e_neighbors if t == "1"]
                         double_neighbors = [n for t, n in e_neighbors if t == "2"]
@@ -150,12 +150,12 @@ def find_c1_c2(nbo_section, oh_bond_atoms):
                         print(f"Found C1: {c}, C2: {e}, A: {a}, B: {b}, D: {d}, F: {f}, G: {g}")
                         return c, e, a, b, d, f, g
 
-    # 如果整個迴圈結束沒找到符合條件的，回傳最後找到的值
+    # If nothing matched, return last found result
     if last_found[0] is not None:
         print(f"[WARN] No C1-C2 pairs with the required bonding pattern found, returning last found values: {last_found}")
         return last_found
 
-    # 完全沒找到任何組合
+    # No results at all
     return None, None, None, None, None, None, None
 
 def extract_nbo_values(log_file, c1, c2, a):
@@ -217,7 +217,7 @@ def extract_nbo_charges(log_file, c1, c2, a):
             summary_index = i
             break
     if summary_index is None:
-        raise ValueError(f"未找到 {log_file} 的 Summary of Natural Population Analysis 區塊")
+        raise ValueError(f"Summary of Natural Population Analysis block NOT found in {log_file}")
     charges = {}
     for line in content[summary_index:]:
         match = re.match(r'\s*(\w+)\s+(\d+)\s+([-\d\.]+)', line)
@@ -242,7 +242,7 @@ def extract_frequencies(log_file, atom_c, atom_d):
             vib_start = i
             break
     if vib_start is None:
-        raise ValueError("未找到 Frequencies 區塊")
+        raise ValueError("Frequencies block NOT found")
     matched_frequencies = []
     i = vib_start
     while i < len(content):
@@ -278,12 +278,12 @@ def extract_frequencies(log_file, atom_c, atom_d):
         else:
             i += 1
     if not matched_frequencies:
-        raise ValueError("找不到 1800–1900 cm⁻¹ 範圍內 atom_c 和 atom_d 的振動模式")
+        raise ValueError("No vibration modes found for atom_c and atom_d in 1800–1900 cm⁻¹ range")
     matched_frequencies.sort(key=lambda x: x[2], reverse=True)
     best_freq, best_ir, best_disp = matched_frequencies[0]
     return best_ir, best_freq
 
-# ============ 2. Sterimol參數 (需安裝morfeus) ============
+# ============ 2. Sterimol parameters (require morfeus) ============
 atomic_symbols = {1: 'H', 6: 'C', 7: 'N', 8: 'O', 9: 'F', 15: 'P', 16: 'S', 17: 'Cl', 35: 'Br', 53: 'I'}
 
 def extract_last_standard_orientation(log_path):
@@ -344,7 +344,7 @@ def add_sterimol_to_df(df, log_folder):
         from morfeus import read_xyz, Sterimol
         from morfeus.utils import get_radii
     except ImportError:
-        raise ImportError("morfeus library required for sterimol (請安裝 pip install morfeus-ml 並重啟 kernel).")
+        raise ImportError("morfeus library required for sterimol (please install via pip install morfeus-ml and restart the kernel).")
     df["Ar_Ster_L"] = None
     df["Ar_Ster_B1"] = None
     df["Ar_Ster_B5"] = None
@@ -355,17 +355,17 @@ def add_sterimol_to_df(df, log_folder):
         log_path = log_map.get(mol_name)
         print(f"\n[Sterimol] [{mol_name}] log: {log_path}")
         if not log_path:
-            print("  [SKIP] 找不到 log 檔案")
+            print("  [SKIP] Log file not found")
             continue
         atoms = extract_last_standard_orientation(log_path)
         if not atoms:
-            print("  [SKIP] 無法提取 atoms")
+            print("  [SKIP] Failed to extract atoms")
             continue
 
-        # ===== 調整：允許部分 index None，但明確報出並設 None =====
+        # Allow some index to be None, but explicitly report and set to None
         try:
             if any(pd.isna(x) for x in [row["Ar_a"], row["Ar_b"], row["Ar_d"], row["Ar_c"], row["Ar_e"]]):
-                print(f"  [WARN] Atoms 欄位有 NaN: Ar_a={row['Ar_a']}, Ar_b={row['Ar_b']}, Ar_d={row['Ar_d']}, Ar_c={row['Ar_c']}, Ar_e={row['Ar_e']}，此分子 sterimol 設 None")
+                print(f"  [WARN] Some atom index columns are NaN: Ar_a={row['Ar_a']}, Ar_b={row['Ar_b']}, Ar_d={row['Ar_d']}, Ar_c={row['Ar_c']}, Ar_e={row['Ar_e']}; sterimol set to None for this molecule.")
                 df.at[idx, "Ar_Ster_L"] = None
                 df.at[idx, "Ar_Ster_B1"] = None
                 df.at[idx, "Ar_Ster_B5"] = None
@@ -389,7 +389,7 @@ def add_sterimol_to_df(df, log_folder):
             df.at[idx, "Ar_Ster_B5"] = sterimol.B_5_value
             print(f"  [OK] Sterimol: L={sterimol.L_value}, B1={sterimol.B_1_value}, B5={sterimol.B_5_value}")
         except Exception as e:
-            print(f"  [ERROR] Sterimol 計算失敗: {e}")
+            print(f"  [ERROR] Sterimol calculation failed: {e}")
             df.at[idx, "Ar_Ster_L"] = None
             df.at[idx, "Ar_Ster_B1"] = None
             df.at[idx, "Ar_Ster_B5"] = None
@@ -475,41 +475,41 @@ def plot_best_regression(target, df, best_model, savepath='Regression_Plot.png')
 
 def report_index_problems(df, log_folder=None):
     """
-    報告所有 index 欄位為 None/NaN 的分子，並存成 Excel。
+    Report all molecules whose index columns are None/NaN, and save as Excel.
     """
     index_cols = ["Ar_c", "Ar_e", "Ar_a", "Ar_b", "Ar_d", "Ar_f", "Ar_g"]
     def is_any_nan_or_none(row):
         return any((x is None) or (isinstance(x, float) and np.isnan(x)) for x in row[index_cols])
     problem_rows = df[df.apply(is_any_nan_or_none, axis=1)]
     if len(problem_rows) == 0:
-        print("✅ 沒有任何分子的 index 欄位為 None/NaN，全部解析正常！")
+        print("✅ No molecules have index columns as None/NaN; all extracted correctly!")
     else:
-        print("❗以下分子提取時 atom index 有 None/NaN：\n")
+        print("❗The following molecules have atom index as None/NaN during extraction:\n")
         print(problem_rows[["Ar"] + index_cols])
-        # 若沒有 log_file 欄，試著自動補齊
+        # If no log_file column, try to fill it automatically
         if log_folder is not None and "log_file" not in problem_rows.columns:
             problem_rows = problem_rows.copy()
             problem_rows["log_file"] = problem_rows["Ar"].apply(lambda ar: f"{log_folder}/{ar}.log")
-            print("\n對應 log_file：")
+            print("\nCorresponding log_file:")
             print(problem_rows[["Ar", "log_file"]])
-        # 匯出
+        # Export
         problem_rows.to_excel("problem_index_report.xlsx", index=False)
-        print("\n已存為 problem_index_report.xlsx，方便人工追查！")
+        print("\nSaved as problem_index_report.xlsx for manual checking!")
 
 
 
-# ============ 5. 封裝成一個主流程 =============
+# ============ 5. Main Pipeline =============
 
 def run_full_pipeline(log_folder, xlsx_path, target="ddG",
                       output_path="final_output.xlsx", plot_path='Regression_Plot.png'):
-    print(f"\n[STEP1] 讀取 Excel：{xlsx_path}")
+    print(f"\n[STEP1] Read Excel: {xlsx_path}")
     df = pd.read_excel(xlsx_path)
     for index, row in df.iterrows():
         ar = row["Ar"]
         log_file = os.path.join(log_folder, f"{ar}.log")
-        print(f"\n==== [{index+1}/{len(df)}] [{ar}] 處理 log: {log_file} ====")
+        print(f"\n==== [{index+1}/{len(df)}] [{ar}] Processing log: {log_file} ====")
         if not os.path.exists(log_file):
-            print(f"  [SKIP] 找不到 log 檔案：{log_file}")
+            print(f"  [SKIP] Log file not found: {log_file}")
             continue
 
         try:
@@ -534,22 +534,22 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
                         occupancy_C1_O, energy_C1_O, occupancy_C1_C2, energy_C1_C2 = extract_nbo_values(log_file, c1, c2, a)
                         print(f"  NBO values: {occupancy_C1_O}, {energy_C1_O}, {occupancy_C1_C2}, {energy_C1_C2}")
                     except Exception as e:
-                        print(f"  [NBO values] 失敗: {e}")
+                        print(f"  [NBO values] Failed: {e}")
                     try:
                         Ar_NBO_C1, Ar_NBO_C2, Ar_NBO_O1, Ar_NBO_O2 = extract_nbo_charges(log_file, c1, c2, a)
                         print(f"  NBO charges: C1={Ar_NBO_C1}, C2={Ar_NBO_C2}, O1={Ar_NBO_O1}, O2={Ar_NBO_O2}")
                     except Exception as e:
-                        print(f"  [NBO charges] 失敗: {e}")
+                        print(f"  [NBO charges] Failed: {e}")
                     try:
                         Ar_I_C_O, Ar_v_C_O = extract_frequencies(log_file, Ar_c, Ar_d)
                         print(f"  frequencies: I_C_O={Ar_I_C_O}, v_C_O={Ar_v_C_O}")
                     except Exception as e:
-                        print(f"  [Frequencies] 失敗: {e}")
+                        print(f"  [Frequencies] Failed: {e}")
                     try:
                         coord_C1, coord_C2, L_C1_C2 = extract_coordinates(log_file, c1, c2)
                         print(f"  C1, C2, L_C1_C2: {coord_C1}, {coord_C2}, {L_C1_C2}")
                     except Exception as e:
-                        print(f"  [Coordinates] 失敗: {e}")
+                        print(f"  [Coordinates] Failed: {e}")
 
             df.at[index, "Ar_NBO_C2"] = Ar_NBO_C2
             df.at[index, "Ar_NBO_=O"] = Ar_NBO_O1
@@ -569,17 +569,17 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
             df.at[index, "Ar_f"] = Ar_f
             df.at[index, "Ar_g"] = Ar_g
         except Exception as e:
-            print(f"[ERROR] 處理 {ar} 時發生錯誤: {e}")
+            print(f"[ERROR] Error occurred while processing {ar}: {e}")
             continue
 
     df.to_excel("output.xlsx", index=False)
-    print(f"\n[STEP2] 加入 Sterimol 特徵")
+    print(f"\n[STEP2] Adding Sterimol descriptors")
     df = add_sterimol_to_df(df, log_folder)
     df.to_excel(output_path, index=False)
 
     report_index_problems(df, log_folder)
 
-    print(f"\n[STEP3] 進行回歸訓練與篩選最佳模型")
+    print(f"\n[STEP3] Regression training and best model selection")
     feature_list = [
         'Ar_NBO_C2', 'Ar_NBO_=O', 'Ar_NBO_-O', 'Ar_v_C=O', 'Ar_I_C=O', 'Ar_dp', 'L_C1_C2',
         'Ar_polar', 'Ar_LUMO', 'Ar_HOMO', 'Ar_Ster_L', 'Ar_Ster_B1', 'Ar_Ster_B5'
@@ -588,5 +588,5 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
     results = search_best_models(data, feature_list, target, max_features=5, r2_threshold=0.8, n_jobs=4)
     best_model = sorted(results, key=lambda x: x['r2_full'], reverse=True)[0]
     plot_best_regression(target, data, best_model, plot_path)
-    print(f"\n[STEP4] 分析完成！")
+    print(f"\n[STEP4] Analysis complete!")
     return df, results, best_model
