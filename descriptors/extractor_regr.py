@@ -435,14 +435,50 @@ def evaluate_combinations(data, target, feature_set):
         return None
 
 def search_best_models(data, features, target, max_features=5, r2_threshold=0.8, n_jobs=-1):
+    #all_results = []
+    #for k in range(1, max_features + 1):
+    #    combs = list(combinations(features, k))
+    #    results = Parallel(n_jobs=n_jobs)(
+    #        delayed(evaluate_combinations)(data, target, list(c)) for c in combs
+    #    )
+    #    all_results.extend([res for res in results if res is not None])
+    #return sorted(all_results, key=lambda x: x["q2_loocv"], reverse=True)
+
+
     all_results = []
+
     for k in range(1, max_features + 1):
         combs = list(combinations(features, k))
-        results = Parallel(n_jobs=n_jobs)(
-            delayed(evaluate_combinations)(data, target, list(c)) for c in combs
-        )
-        all_results.extend([res for res in results if res is not None])
-    return sorted(all_results, key=lambda x: x["q2_loocv"], reverse=True)
+        if verbose:
+            print(f"\n🔍 Testing {k}-feature combinations ({len(combs)} total)")
+        for c in combs:
+            result = evaluate_combinations(data, target, list(c))
+            if result is not None:
+                all_results.append(result)
+                if verbose:
+                    print(f"✅ {list(c)} | R² = {result['r2_full']:.3f} | Q² = {result['q2_loocv']:.3f} | RMSE = {result['rmse']:.3f}")
+            elif verbose:
+                print(f"❌ {list(c)} | skipped (R² < {r2_threshold} or error)")
+
+    if not all_results:
+        print("⚠️ No valid models found.")
+        return [], None
+
+    # Save results
+    df_all = pd.DataFrame(all_results)
+    df_all["num_features"] = df_all["features"].apply(len)
+
+    if save_csv:
+        df_all.to_csv(csv_path, index=False)
+        if verbose:
+            print(f"\n📄 Saved all {len(df_all)} results to {csv_path}")
+
+    # Return best model (highest Q²)
+    best_model = df_all.sort_values(by="q2_loocv", ascending=False).iloc[0].to_dict()
+    if verbose:
+        print(f"\n🏆 Best model: {best_model['features']} | Q² = {best_model['q2_loocv']:.3f} | R² = {best_model['r2_full']:.3f}")
+
+    return df_all.to_dict(orient="records"), best_model
 
 # ============ 4. Regression Plot ============
 def plot_best_regression(target, df, best_model, savepath='Regression_Plot.png'):
@@ -585,8 +621,12 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
         'Ar_polar', 'Ar_LUMO', 'Ar_HOMO', 'Ar_Ster_L', 'Ar_Ster_B1', 'Ar_Ster_B5'
     ]
     data = prepare_data(output_path, feature_list, target)
-    results = search_best_models(data, feature_list, target, max_features=5, r2_threshold=0.8, n_jobs=4)
-    best_model = sorted(results, key=lambda x: x['r2_full'], reverse=True)[0]
+    #results = search_best_models(data, feature_list, target, max_features=5, r2_threshold=0.8, n_jobs=4)
+    #best_model = sorted(results, key=lambda x: x['r2_full'], reverse=True)[0]
+
+    results, best_model = search_best_models_full(data, features=feature_list, target=target, max_features=5, r2_threshold=0.7, save_csv=True, csv_path="regression_search_results.csv", verbose=True)
+
+
     plot_best_regression(target, data, best_model, plot_path)
     print(f"\n[STEP4] Analysis complete!")
     return df, results, best_model
