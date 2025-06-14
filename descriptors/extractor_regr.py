@@ -492,13 +492,13 @@ def plot_best_regression(target, df, best_model, savepath='Regression_Plot.png')
     ax.set_facecolor('w')
     ax.plot(y_actual, y_actual, color='k')
     ax.scatter(y_actual, y_pred, edgecolor='b', facecolor='b', alpha=0.7)
-    ax.set_ylabel('Predicted ln(k)', fontsize=18, color='k')
-    ax.set_xlabel('Experimental ln(k)', fontsize=18, color='k')
+    ax.set_ylabel('Predicted {target}', fontsize=18, color='k')
+    ax.set_xlabel('Experimental {target}', fontsize=18, color='k')
     ax.spines['bottom'].set_color('k')
     ax.spines['left'].set_color('k')
     ax.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
     ax.xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-    fig.text(0.13, 0.95, f'ddG = {" + ".join([f"{c:.2f}({f})" for c, f in zip(coefficients, X_columns)])} + {intercept:.2f}', fontsize=10)
+    fig.text(0.13, 0.95, f'{target} = {" + ".join([f"{c:.2f}({f})" for c, f in zip(coefficients, X_columns)])} + {intercept:.2f}', fontsize=10)
     fig.text(0.55, 0.35, f'$R^2= {best_model["r2_full"]:.2f}$', fontsize=16)
     fig.text(0.55, 0.30, f'rmse = {best_model["rmse"]:.2f}', fontsize=16)
     fig.text(0.55, 0.25, f'$Q^2= {best_model["q2_loocv"]:.2f}$ (LOO)', fontsize=16)
@@ -624,7 +624,7 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
     #results = search_best_models(data, feature_list, target, max_features=5, r2_threshold=0.8, n_jobs=4)
     #best_model = sorted(results, key=lambda x: x['r2_full'], reverse=True)[0]
 
-    results, best_model = search_best_models_full(data, features=feature_list, target=target, max_features=5, r2_threshold=0.7, save_csv=True, csv_path="regression_search_results.csv", verbose=True)
+    results, best_model = search_best_models(data, features=feature_list, target=target, max_features=5, r2_threshold=0.7, save_csv=True, csv_path="regression_search_results.csv", verbose=True)
 
 
     plot_best_regression(target, data, best_model, plot_path)
