@@ -434,7 +434,7 @@ def evaluate_combinations(data, target, feature_set):
     except np.linalg.LinAlgError:
         return None
 
-def search_best_models(data, features, target, max_features=5, r2_threshold=0.8, n_jobs=-1):
+def search_best_models(data, features, target, max_features=5, r2_threshold=0.7, save_csv=True, csv_path="regression_search_results.csv", verbose=True,):
     #all_results = []
     #for k in range(1, max_features + 1):
     #    combs = list(combinations(features, k))
