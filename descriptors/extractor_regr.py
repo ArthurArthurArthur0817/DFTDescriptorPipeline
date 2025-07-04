@@ -541,7 +541,7 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
     print(f"\n[STEP1] Read Excel: {xlsx_path}")
     df = pd.read_excel(xlsx_path)
 
-    # ✅ 新增：檢查 log 存在性，只保留有對應 log 的資料
+    # ✅ 檢查 log 是否存在
     df["log_path"] = df["Ar"].apply(lambda ar: os.path.join(log_folder, f"{ar}.log"))
     df["log_exists"] = df["log_path"].apply(os.path.exists)
     df = df[df["log_exists"]].reset_index(drop=True)
@@ -606,6 +606,18 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
             continue
 
     df.to_excel("output.xlsx", index=False)
+
+    # ✅ 新增：先移除所有 NaN 列，避免後續 sterimol 出錯
+    print(f"\n[STEP1.5] 移除所有欄位中含 NaN 的資料列")
+    before_drop = df.shape[0]
+    df = df.dropna()
+    after_drop = df.shape[0]
+    print(f"✅ 移除含 NaN 的資料列，共 {before_drop - after_drop} 筆，剩餘 {after_drop} 筆可用資料")
+
+    if df.empty:
+        print("⚠️ 所有資料在清洗後皆為空，終止流程")
+        return df, [], {}
+
     print(f"\n[STEP2] Adding Sterimol descriptors")
     df = add_sterimol_to_df(df, log_folder)
     df.to_excel(output_path, index=False)
@@ -619,15 +631,9 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
     ]
     data = prepare_data(output_path, feature_list, target)
 
-    # ✅ 移除含有 NaN 的列，避免建模失敗
-    before_drop = data.shape[0]
+    # ✅ 再次檢查 NaN（保險）
     data = data.dropna()
-    after_drop = data.shape[0]
-    print(f"✅ 移除含 NaN 的資料列，共 {before_drop - after_drop} 筆，剩餘 {after_drop} 筆可建模資料")
-
-
-    # ✅ 新增：如果都沒有有效資料，就結束
-    if data.shape[0] == 0:
+    if data.empty:
         print("⚠️ 所有資料都因特徵缺失被過濾，無法建立模型。")
         return df, [], {}
 
@@ -635,7 +641,7 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
                                              max_features=5, r2_threshold=0.7,
                                              save_csv=True, csv_path="regression_search_results.csv", verbose=True)
 
-    # ✅ 加入防呆：best_model 有內容時才畫圖
+    # ✅ 有找到才畫圖
     if best_model:
         plot_best_regression(target, data, best_model, plot_path)
     else:
