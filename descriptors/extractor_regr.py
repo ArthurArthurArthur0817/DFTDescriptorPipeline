@@ -436,38 +436,46 @@ def evaluate_combinations(data, target, feature_set):
         print(f"[ERROR] Combo {feature_set} failed: {e}")
         return None
 
-def search_best_models(
-    data, features, target,
-    max_features=5,
-    r2_threshold=0.7,
-    save_csv=True,
-    csv_path="regression_search_results.csv",
-    verbose=True,
-    n_jobs=-1,
-    max_comb_per_k=500
-):
+def search_best_models(data, features, target, max_features=5, r2_threshold=0.7,
+                                    save_csv=True, csv_path="regression_search_results.csv", verbose=True):
+
+    ar1_features = [f for f in features if f.startswith("Ar1_")]
+    ar2_features = [f for f in features if f.startswith("Ar2_")]
+    enforce_balanced = bool(ar1_features) and bool(ar2_features)
+
     all_results = []
 
     for k in range(1, max_features + 1):
-        combs = list(combinations(features, k))
-
-        if len(combs) > max_comb_per_k:
-            combs = random.sample(combs, max_comb_per_k)
-
         if verbose:
-            print(f"\n🔍 Testing {k}-feature combinations ({len(combs)} total)")
+            print(f"\n🔍 Testing {k}-feature combinations")
 
-        results = Parallel(n_jobs=n_jobs)(
-            delayed(evaluate_combinations)(data, target, list(c)) for c in combs
-        )
-
-        for result in results:
-            if result is not None and result["r2_full"] >= r2_threshold:
-                all_results.append(result)
-                if verbose:
-                    print(f"✅ {result['features']} | R² = {result['r2_full']:.3f} | Q² = {result['q2_loocv']:.3f} | RMSE = {result['rmse']:.3f}")
-            elif verbose:
-                print(f"❌ skipped (R² < {r2_threshold} or error)")
+        if enforce_balanced and k >= 2:
+            # 強制 Ar1 + Ar2 平衡
+            for ar1_k in range(1, k):
+                ar2_k = k - ar1_k
+                ar1_combs = list(combinations(ar1_features, ar1_k))
+                ar2_combs = list(combinations(ar2_features, ar2_k))
+                for a1 in ar1_combs:
+                    for a2 in ar2_combs:
+                        comb = list(a1) + list(a2)
+                        result = evaluate_combinations(data, target, comb)
+                        if result and result["r2_full"] >= r2_threshold:
+                            all_results.append(result)
+                            if verbose:
+                                print(f"✅ {comb} | R² = {result['r2_full']:.3f} | Q² = {result['q2_loocv']:.3f}")
+                        elif verbose:
+                            print(f"❌ {comb} | skipped")
+        else:
+            # 一般全面組合
+            combs = list(combinations(features, k))
+            for c in combs:
+                result = evaluate_combinations(data, target, list(c))
+                if result and result["r2_full"] >= r2_threshold:
+                    all_results.append(result)
+                    if verbose:
+                        print(f"✅ {list(c)} | R² = {result['r2_full']:.3f} | Q² = {result['q2_loocv']:.3f}")
+                elif verbose:
+                    print(f"❌ {list(c)} | skipped")
 
     if not all_results:
         print("⚠️ No valid models found.")
@@ -482,7 +490,6 @@ def search_best_models(
             print(f"\n📄 Saved all {len(df_all)} results to {csv_path}")
 
     best_model = df_all.sort_values(by="q2_loocv", ascending=False).iloc[0].to_dict()
-
     if verbose:
         print(f"\n🏆 Best model: {best_model['features']} | Q² = {best_model['q2_loocv']:.3f} | R² = {best_model['r2_full']:.3f}")
 
