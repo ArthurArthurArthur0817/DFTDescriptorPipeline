@@ -640,18 +640,24 @@ def run_full_pipeline(log_folder, xlsx_path, target="ln(kobs)",
 
     df.to_excel(output_path, index=False)
 
-    # ========== STEP 4: 準備建模 ==========
+    # ========== STEP 4: 建模 ==========
     print(f"\n[STEP4] Performing regression modeling")
 
-    features = [col for col in df.columns if col.startswith("Ar1_") or col.startswith("Ar2_")]
     df = df.dropna(subset=features + [target])
     if df.empty:
         print("⚠️ 無可用資料進行回歸")
         return df, [], {}
 
-    results, best_model = search_best_models(df, features=features, target=target,
-                                             max_features=5, r2_threshold=0.7,
-                                             save_csv=True, csv_path="regression_search_results.csv", verbose=True)
+    results, best_model = search_best_models(
+        data=df,
+        features=features,
+        target=target,
+        max_features=5,
+        r2_threshold=0.7,
+        save_csv=True,
+        csv_path="regression_search_results.csv",
+        verbose=True
+    )
 
     if best_model:
         plot_best_regression(target, df, best_model, plot_path)
