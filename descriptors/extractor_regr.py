@@ -635,6 +635,11 @@ def run_full_pipeline(log_folder, xlsx_path, target="ln(kobs)",
         df = df.drop(columns=["Ar1_Ar", "Ar2_Ar"])
         features = [col for col in df.columns if col.startswith("Ar1_") or col.startswith("Ar2_")]
     else:
+        # 1找出會重疊的欄位（除了 key）
+        overlap_cols = [col for col in unique_ar_df.columns if col in df.columns and col != "Ar"]
+        # 2️先把 df 中這些重疊欄位刪掉
+        df = df.drop(columns=overlap_cols)
+        # 3️再合併，只保留 unique_ar_df 的同名欄位
         df = df.merge(unique_ar_df, on="Ar", how="left")
         features = essential_cols
 
