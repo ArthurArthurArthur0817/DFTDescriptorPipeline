@@ -547,15 +547,16 @@ def reshape_ar1_ar2_pair(df: pd.DataFrame) -> pd.DataFrame:
 
     df_subset = df[id_vars + ["Ar_role"] + value_vars].copy()
 
+    # Pivot
     df_wide = df_subset.pivot(index=["Compound", "ln(kobs)", "Ar1", "Ar2"],
                               columns="Ar_role",
                               values=value_vars)
 
-    df_wide.columns = [f"{role}_{feat}" for feat, role in df_wide.columns]
+    # 修正欄位命名 → 防止形狀錯誤
+    df_wide.columns = [f"{role}_{feat}" for feat, role in df_wide.columns.to_flat_index()]
     df_wide = df_wide.reset_index()
 
     return df_wide
-
 
 def run_full_pipeline(log_folder, xlsx_path, target="ln(kobs)",
                       output_path="final_output.xlsx", plot_path='Regression_Plot.png',
