@@ -540,52 +540,48 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
                       output_path="final_output.xlsx", plot_path='Regression_Plot.png'):
     print(f"\n[STEP1] Read Excel: {xlsx_path}")
     df = pd.read_excel(xlsx_path)
+
+    # ✅ 新增：檢查 log 存在性，只保留有對應 log 的資料
+    df["log_path"] = df["Ar"].apply(lambda ar: os.path.join(log_folder, f"{ar}.log"))
+    df["log_exists"] = df["log_path"].apply(os.path.exists)
+    df = df[df["log_exists"]].reset_index(drop=True)
+    print(f"✅ 找到 {len(df)} 筆有 log 的資料，將繼續處理")
+
     for index, row in df.iterrows():
         ar = row["Ar"]
-        log_file = os.path.join(log_folder, f"{ar}.log")
+        log_file = row["log_path"]
         print(f"\n==== [{index+1}/{len(df)}] [{ar}] Processing log: {log_file} ====")
-        if not os.path.exists(log_file):
-            print(f"  [SKIP] Log file not found: {log_file}")
-            continue
 
         try:
             avg_polar = extract_polarizability(log_file)
-            print(f"  polarizability: {avg_polar}")
             homo, lumo = extract_homo_lumo(log_file)
-            print(f"  HOMO: {homo}, LUMO: {lumo}")
             dipole_moment = extract_dipole_moment(log_file)
-            print(f"  dipole: {dipole_moment}")
             nbo_content = extract_nbo_section(log_file)
-            print(f"  nbo_section: {'ok' if nbo_content else 'none'}")
             Ar_c = Ar_e = Ar_a = None
             Ar_NBO_C2 = Ar_NBO_O1 = Ar_NBO_O2 = Ar_v_C_O = Ar_I_C_O = L_C1_C2 = None
             Ar_b = Ar_d = Ar_f = Ar_g = None
+
             if nbo_content:
                 oh_atoms = find_oh_bonds(nbo_content)
                 c1, c2, a, b, d, f, g = find_c1_c2(nbo_content, oh_atoms)
                 Ar_c, Ar_e, Ar_a, Ar_b, Ar_d, Ar_f, Ar_g = c1, c2, a, b, d, f, g
-                print(f"  atom index: c={c1}, e={c2}, a={a}, b={b}, d={d}, f={f}, g={g}")
                 if c1 and c2 and a:
                     try:
                         occupancy_C1_O, energy_C1_O, occupancy_C1_C2, energy_C1_C2 = extract_nbo_values(log_file, c1, c2, a)
-                        print(f"  NBO values: {occupancy_C1_O}, {energy_C1_O}, {occupancy_C1_C2}, {energy_C1_C2}")
-                    except Exception as e:
-                        print(f"  [NBO values] Failed: {e}")
+                    except:
+                        pass
                     try:
                         Ar_NBO_C1, Ar_NBO_C2, Ar_NBO_O1, Ar_NBO_O2 = extract_nbo_charges(log_file, c1, c2, a)
-                        print(f"  NBO charges: C1={Ar_NBO_C1}, C2={Ar_NBO_C2}, O1={Ar_NBO_O1}, O2={Ar_NBO_O2}")
-                    except Exception as e:
-                        print(f"  [NBO charges] Failed: {e}")
+                    except:
+                        pass
                     try:
                         Ar_I_C_O, Ar_v_C_O = extract_frequencies(log_file, Ar_c, Ar_d)
-                        print(f"  frequencies: I_C_O={Ar_I_C_O}, v_C_O={Ar_v_C_O}")
-                    except Exception as e:
-                        print(f"  [Frequencies] Failed: {e}")
+                    except:
+                        pass
                     try:
                         coord_C1, coord_C2, L_C1_C2 = extract_coordinates(log_file, c1, c2)
-                        print(f"  C1, C2, L_C1_C2: {coord_C1}, {coord_C2}, {L_C1_C2}")
-                    except Exception as e:
-                        print(f"  [Coordinates] Failed: {e}")
+                    except:
+                        pass
 
             df.at[index, "Ar_NBO_C2"] = Ar_NBO_C2
             df.at[index, "Ar_NBO_=O"] = Ar_NBO_O1
@@ -604,6 +600,7 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
             df.at[index, "Ar_d"] = Ar_d
             df.at[index, "Ar_f"] = Ar_f
             df.at[index, "Ar_g"] = Ar_g
+
         except Exception as e:
             print(f"[ERROR] Error occurred while processing {ar}: {e}")
             continue
@@ -621,12 +618,21 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
         'Ar_polar', 'Ar_LUMO', 'Ar_HOMO', 'Ar_Ster_L', 'Ar_Ster_B1', 'Ar_Ster_B5'
     ]
     data = prepare_data(output_path, feature_list, target)
-    #results = search_best_models(data, feature_list, target, max_features=5, r2_threshold=0.8, n_jobs=4)
-    #best_model = sorted(results, key=lambda x: x['r2_full'], reverse=True)[0]
 
-    results, best_model = search_best_models(data, features=feature_list, target=target, max_features=5, r2_threshold=0.7, save_csv=True, csv_path="regression_search_results.csv", verbose=True)
+    # ✅ 新增：如果都沒有有效資料，就結束
+    if data.shape[0] == 0:
+        print("⚠️ 所有資料都因特徵缺失被過濾，無法建立模型。")
+        return df, [], {}
 
+    results, best_model = search_best_models(data, features=feature_list, target=target,
+                                             max_features=5, r2_threshold=0.7,
+                                             save_csv=True, csv_path="regression_search_results.csv", verbose=True)
 
-    plot_best_regression(target, data, best_model, plot_path)
+    # ✅ 加入防呆：best_model 有內容時才畫圖
+    if best_model:
+        plot_best_regression(target, data, best_model, plot_path)
+    else:
+        print("⚠️ 沒有符合 R² 門檻的模型，跳過繪圖。")
+
     print(f"\n[STEP4] Analysis complete!")
     return df, results, best_model
