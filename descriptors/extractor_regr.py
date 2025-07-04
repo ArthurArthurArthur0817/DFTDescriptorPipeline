@@ -425,13 +425,14 @@ def compute_loocv_metrics(X, y):
     }
 
 def evaluate_combinations(data, target, feature_set):
-    X = data[feature_set].values
-    y = data[target].values
     try:
+        X = data[feature_set].astype(float).values  # ✅ 強制轉為 float 避免 @ 矩陣乘法出錯
+        y = data[target].values
         result = compute_loocv_metrics(X, y)
         result["features"] = feature_set
         return result if result["r2_full"] > 0.7 else None
-    except np.linalg.LinAlgError:
+    except Exception as e:
+        print(f"[ERROR] Combo {feature_set} failed: {e}")
         return None
 
 def search_best_models(data, features, target, max_features=5, r2_threshold=0.7, save_csv=True, csv_path="regression_search_results.csv", verbose=True,):
