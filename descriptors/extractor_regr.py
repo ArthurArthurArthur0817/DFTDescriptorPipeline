@@ -626,11 +626,17 @@ def run_full_pipeline(log_folder, xlsx_path, target="ln(kobs)",
 
     unique_ar_df.to_excel("unique_ar_features.xlsx", index=False)
 
-    # ========== STEP 3: 配對 Ar1 / Ar2 的特徵到主 df ==========
-    print(f"\n[STEP3] Merging Ar1 / Ar2 features into main dataframe")
-    df = df.merge(unique_ar_df.add_prefix("Ar1_"), left_on="Ar1", right_on="Ar1_Ar", how="left")
-    df = df.merge(unique_ar_df.add_prefix("Ar2_"), left_on="Ar2", right_on="Ar2_Ar", how="left")
-    df = df.drop(columns=["Ar1_Ar", "Ar2_Ar"])
+    # ========== STEP 3: 合併特徵 ==========
+    print(f"\n[STEP3] Merging features into main dataframe")
+
+    if auto_pairing:
+        df = df.merge(unique_ar_df.add_prefix("Ar1_"), left_on="Ar1", right_on="Ar1_Ar", how="left")
+        df = df.merge(unique_ar_df.add_prefix("Ar2_"), left_on="Ar2", right_on="Ar2_Ar", how="left")
+        df = df.drop(columns=["Ar1_Ar", "Ar2_Ar"])
+        features = [col for col in df.columns if col.startswith("Ar1_") or col.startswith("Ar2_")]
+    else:
+        df = df.merge(unique_ar_df, on="Ar", how="left")
+        features = essential_cols
 
     df.to_excel(output_path, index=False)
 
