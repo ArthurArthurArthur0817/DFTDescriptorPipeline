@@ -619,6 +619,13 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
     ]
     data = prepare_data(output_path, feature_list, target)
 
+    # ✅ 移除含有 NaN 的列，避免建模失敗
+    before_drop = data.shape[0]
+    data = data.dropna()
+    after_drop = data.shape[0]
+    print(f"✅ 移除含 NaN 的資料列，共 {before_drop - after_drop} 筆，剩餘 {after_drop} 筆可建模資料")
+
+
     # ✅ 新增：如果都沒有有效資料，就結束
     if data.shape[0] == 0:
         print("⚠️ 所有資料都因特徵缺失被過濾，無法建立模型。")
