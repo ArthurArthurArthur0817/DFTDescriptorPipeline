@@ -538,7 +538,7 @@ def report_index_problems(df, log_folder=None):
 
 def reshape_ar1_ar2_pair(df: pd.DataFrame) -> pd.DataFrame:
     """
-    將原本 df 中每個 Ar1 + Ar2 的 log 特徵（兩筆 row）合併為單一筆資料，包含 Ar1_* 與 Ar2_* 特徵。
+    將原始 df 的 Ar1/Ar2 特徵資料轉為寬格式，每一列包含 Ar1_* 與 Ar2_*。
     """
     df["Ar_role"] = df.apply(lambda row: "Ar1" if row["Ar"] == row["Ar1"] else "Ar2", axis=1)
 
@@ -547,13 +547,11 @@ def reshape_ar1_ar2_pair(df: pd.DataFrame) -> pd.DataFrame:
 
     df_subset = df[id_vars + ["Ar_role"] + value_vars].copy()
 
-    # Pivot
-    df_wide = df_subset.pivot(index=["Compound", "ln(kobs)", "Ar1", "Ar2"],
-                              columns="Ar_role",
-                              values=value_vars)
+    # Pivot，產出 MultiIndex 欄位 (value_var, Ar_role)
+    df_wide = df_subset.pivot(index=id_vars, columns="Ar_role", values=value_vars)
 
-    # 修正欄位命名 → 防止形狀錯誤
-    df_wide.columns = [f"{role}_{feat}" for feat, role in df_wide.columns.to_flat_index()]
+    # 修正欄位命名：多層索引展平為 'Ar1_變數名' / 'Ar2_變數名'
+    df_wide.columns = [f"{role}_{col}" for col, role in df_wide.columns.to_flat_index()]
     df_wide = df_wide.reset_index()
 
     return df_wide
