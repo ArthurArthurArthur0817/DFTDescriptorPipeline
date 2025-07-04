@@ -550,8 +550,11 @@ def reshape_ar1_ar2_pair(df: pd.DataFrame) -> pd.DataFrame:
     # Pivot，產出 MultiIndex 欄位 (value_var, Ar_role)
     df_wide = df_subset.pivot(index=id_vars, columns="Ar_role", values=value_vars)
 
-    # 修正欄位命名：多層索引展平為 'Ar1_變數名' / 'Ar2_變數名'
-    df_wide.columns = [f"{role}_{col}" for col, role in df_wide.columns.to_flat_index()]
+    print("✅ df_wide.shape =", df_wide.shape)
+    print("✅ df_wide.columns =", df_wide.columns.tolist())
+
+    # ✔️ 完整展平 multi-index → 單層欄位名稱
+    df_wide.columns = [f"{role}_{feat}" for feat, role in df_wide.columns.to_flat_index()]
     df_wide = df_wide.reset_index()
 
     return df_wide
