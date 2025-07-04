@@ -536,17 +536,39 @@ def report_index_problems(df, log_folder=None):
 
 # ============ 5. Main Pipeline =============
 
-def run_full_pipeline(log_folder, xlsx_path, target="ddG",
-                      output_path="final_output.xlsx", plot_path='Regression_Plot.png'):
+def reshape_ar1_ar2_pair(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    將原本 df 中每個 Ar1 + Ar2 的 log 特徵（兩筆 row）合併為單一筆資料，包含 Ar1_* 與 Ar2_* 特徵。
+    """
+    df["Ar_role"] = df.apply(lambda row: "Ar1" if row["Ar"] == row["Ar1"] else "Ar2", axis=1)
+
+    id_vars = ["Compound", "ln(kobs)", "Ar1", "Ar2"]
+    value_vars = [col for col in df.columns if col.startswith("Ar_") and col not in ["Ar", "Ar1", "Ar2"]]
+
+    df_subset = df[id_vars + ["Ar_role"] + value_vars].copy()
+
+    df_wide = df_subset.pivot(index=["Compound", "ln(kobs)", "Ar1", "Ar2"],
+                              columns="Ar_role",
+                              values=value_vars)
+
+    df_wide.columns = [f"{role}_{feat}" for feat, role in df_wide.columns]
+    df_wide = df_wide.reset_index()
+
+    return df_wide
+
+
+def run_full_pipeline(log_folder, xlsx_path, target="ln(kobs)",
+                      output_path="final_output.xlsx", plot_path='Regression_Plot.png',
+                      auto_pairing=True):
     print(f"\n[STEP1] Read Excel: {xlsx_path}")
     df = pd.read_excel(xlsx_path)
 
-    # ✅ 檢查 log 是否存在
     df["log_path"] = df["Ar"].apply(lambda ar: os.path.join(log_folder, f"{ar}.log"))
     df["log_exists"] = df["log_path"].apply(os.path.exists)
     df = df[df["log_exists"]].reset_index(drop=True)
     print(f"✅ 找到 {len(df)} 筆有 log 的資料，將繼續處理")
 
+    # --- log 特徵萃取 ---
     for index, row in df.iterrows():
         ar = row["Ar"]
         log_file = row["log_path"]
@@ -607,45 +629,45 @@ def run_full_pipeline(log_folder, xlsx_path, target="ddG",
 
     df.to_excel("output.xlsx", index=False)
 
-    # ✅ 新增：先移除所有 NaN 列，避免後續 sterimol 出錯
-    print(f"\n[STEP1.5] 移除所有欄位中含 NaN 的資料列")
-    before_drop = df.shape[0]
     df = df.dropna()
-    after_drop = df.shape[0]
-    print(f"✅ 移除含 NaN 的資料列，共 {before_drop - after_drop} 筆，剩餘 {after_drop} 筆可用資料")
-
     if df.empty:
-        print("⚠️ 所有資料在清洗後皆為空，終止流程")
+        print("⚠️ 所有資料為 NaN，終止流程")
         return df, [], {}
 
-    print(f"\n[STEP2] Adding Sterimol descriptors")
     df = add_sterimol_to_df(df, log_folder)
     df.to_excel(output_path, index=False)
-
     report_index_problems(df, log_folder)
 
-    print(f"\n[STEP3] Regression training and best model selection")
-    feature_list = [
-        'Ar_NBO_C2', 'Ar_NBO_=O', 'Ar_NBO_-O', 'Ar_v_C=O', 'Ar_I_C=O', 'Ar_dp', 'L_C1_C2',
-        'Ar_polar', 'Ar_LUMO', 'Ar_HOMO', 'Ar_Ster_L', 'Ar_Ster_B1', 'Ar_Ster_B5'
-    ]
-    data = prepare_data(output_path, feature_list, target)
+    # --- 判斷是否為 Ar1 + Ar2 配對形式 ---
+    if auto_pairing and "Ar1" in df.columns and "Ar2" in df.columns:
+        print(f"\n[STEP3] Detected Ar1 + Ar2 → 執行配對合併處理")
+        df_pair = reshape_ar1_ar2_pair(df)
+        df_pair.to_excel("paired_output.xlsx", index=False)
+        data = df_pair
+        features = [col for col in df_pair.columns if col.startswith("Ar1_") or col.startswith("Ar2_")]
+    else:
+        print(f"\n[STEP3] 單一芳基資料 → 使用原始資料建模")
+        data = df
+        features = [
+            'Ar_NBO_C2', 'Ar_NBO_=O', 'Ar_NBO_-O', 'Ar_v_C=O', 'Ar_I_C=O', 'Ar_dp',
+            'L_C1_C2', 'Ar_polar', 'Ar_LUMO', 'Ar_HOMO',
+            'Ar_Ster_L', 'Ar_Ster_B1', 'Ar_Ster_B5'
+        ]
 
-    # ✅ 再次檢查 NaN（保險）
-    data = data.dropna()
+    print(f"\n[STEP4] 執行回歸建模")
+    data = data.dropna(subset=features + [target])
     if data.empty:
-        print("⚠️ 所有資料都因特徵缺失被過濾，無法建立模型。")
+        print("⚠️ 無可用資料進行回歸")
         return df, [], {}
 
-    results, best_model = search_best_models(data, features=feature_list, target=target,
+    results, best_model = search_best_models(data, features=features, target=target,
                                              max_features=5, r2_threshold=0.7,
                                              save_csv=True, csv_path="regression_search_results.csv", verbose=True)
 
-    # ✅ 有找到才畫圖
     if best_model:
         plot_best_regression(target, data, best_model, plot_path)
     else:
-        print("⚠️ 沒有符合 R² 門檻的模型，跳過繪圖。")
+        print("⚠️ 沒有符合條件的模型，跳過繪圖")
 
-    print(f"\n[STEP4] Analysis complete!")
-    return df, results, best_model
+    print(f"\n✅ Analysis complete!")
+    return data, results, best_model
