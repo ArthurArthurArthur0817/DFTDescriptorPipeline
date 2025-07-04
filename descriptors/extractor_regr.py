@@ -536,51 +536,31 @@ def report_index_problems(df, log_folder=None):
 
 # ============ 5. Main Pipeline =============
 
-def reshape_ar1_ar2_pair(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    將原始 df 的 Ar1/Ar2 特徵資料轉為寬格式，每一列包含 Ar1_* 與 Ar2_*。
-    """
-    df["Ar_role"] = df.apply(lambda row: "Ar1" if row["Ar"] == row["Ar1"] else "Ar2", axis=1)
-
-    id_vars = ["Compound", "ln(kobs)", "Ar1", "Ar2"]
-    value_vars = [col for col in df.columns if col.startswith("Ar_") and col not in ["Ar", "Ar1", "Ar2"]]
-
-    df_subset = df[id_vars + ["Ar_role"] + value_vars].copy()
-
-    # Pivot，產出 MultiIndex 欄位 (value_var, Ar_role)
-    df_wide = df_subset.pivot(index=id_vars, columns="Ar_role", values=value_vars)
-
-    print("✅ df_wide.shape =", df_wide.shape)
-    print("✅ df_wide.columns =", df_wide.columns.tolist())
-
-    # ✔️ 完整展平 multi-index → 單層欄位名稱
-    df_wide.columns = [f"{role}_{feat}" for feat, role in df_wide.columns.to_flat_index()]
-    df_wide = df_wide.reset_index()
-
-    return df_wide
-
 def run_full_pipeline(log_folder, xlsx_path, target="ln(kobs)",
                       output_path="final_output.xlsx", plot_path='Regression_Plot.png',
                       auto_pairing=True):
     print(f"\n[STEP1] Read Excel: {xlsx_path}")
     df = pd.read_excel(xlsx_path)
 
-    df["log_path"] = df["Ar"].apply(lambda ar: os.path.join(log_folder, f"{ar}.log"))
-    df["log_exists"] = df["log_path"].apply(os.path.exists)
-    df = df[df["log_exists"]].reset_index(drop=True)
-    print(f"✅ 找到 {len(df)} 筆有 log 的資料，將繼續處理")
+    # ========== STEP 0: 建立唯一 Ar 特徵表 (unique_ar_df) ==========
+    print(f"\n[STEP2] Extracting log features for each unique Ar...")
+    unique_ar_df = df[['Ar']].drop_duplicates().copy()
+    unique_ar_df["log_path"] = unique_ar_df["Ar"].apply(lambda ar: os.path.join(log_folder, f"{ar}.log"))
+    unique_ar_df["log_exists"] = unique_ar_df["log_path"].apply(os.path.exists)
+    unique_ar_df = unique_ar_df[unique_ar_df["log_exists"]].reset_index(drop=True)
 
-    # --- log 特徵萃取 ---
-    for index, row in df.iterrows():
+    # 萃取 log features for each unique Ar
+    for index, row in unique_ar_df.iterrows():
         ar = row["Ar"]
         log_file = row["log_path"]
-        print(f"\n==== [{index+1}/{len(df)}] [{ar}] Processing log: {log_file} ====")
+        print(f"\n==== [{index+1}/{len(unique_ar_df)}] [{ar}] Processing log: {log_file} ====")
 
         try:
             avg_polar = extract_polarizability(log_file)
             homo, lumo = extract_homo_lumo(log_file)
             dipole_moment = extract_dipole_moment(log_file)
             nbo_content = extract_nbo_section(log_file)
+
             Ar_c = Ar_e = Ar_a = None
             Ar_NBO_C2 = Ar_NBO_O1 = Ar_NBO_O2 = Ar_v_C_O = Ar_I_C_O = L_C1_C2 = None
             Ar_b = Ar_d = Ar_f = Ar_g = None
@@ -607,69 +587,69 @@ def run_full_pipeline(log_folder, xlsx_path, target="ln(kobs)",
                     except:
                         pass
 
-            df.at[index, "Ar_NBO_C2"] = Ar_NBO_C2
-            df.at[index, "Ar_NBO_=O"] = Ar_NBO_O1
-            df.at[index, "Ar_NBO_-O"] = Ar_NBO_O2
-            df.at[index, "Ar_v_C=O"] = Ar_v_C_O
-            df.at[index, "Ar_I_C=O"] = Ar_I_C_O
-            df.at[index, "Ar_dp"] = dipole_moment
-            df.at[index, "Ar_polar"] = avg_polar
-            df.at[index, "Ar_LUMO"] = lumo
-            df.at[index, "Ar_HOMO"] = homo
-            df.at[index, "L_C1_C2"] = L_C1_C2
-            df.at[index, "Ar_c"] = Ar_c
-            df.at[index, "Ar_e"] = Ar_e
-            df.at[index, "Ar_a"] = Ar_a
-            df.at[index, "Ar_b"] = Ar_b
-            df.at[index, "Ar_d"] = Ar_d
-            df.at[index, "Ar_f"] = Ar_f
-            df.at[index, "Ar_g"] = Ar_g
-
+            unique_ar_df.at[index, "Ar_NBO_C2"] = Ar_NBO_C2
+            unique_ar_df.at[index, "Ar_NBO_=O"] = Ar_NBO_O1
+            unique_ar_df.at[index, "Ar_NBO_-O"] = Ar_NBO_O2
+            unique_ar_df.at[index, "Ar_v_C=O"] = Ar_v_C_O
+            unique_ar_df.at[index, "Ar_I_C=O"] = Ar_I_C_O
+            unique_ar_df.at[index, "Ar_dp"] = dipole_moment
+            unique_ar_df.at[index, "Ar_polar"] = avg_polar
+            unique_ar_df.at[index, "Ar_LUMO"] = lumo
+            unique_ar_df.at[index, "Ar_HOMO"] = homo
+            unique_ar_df.at[index, "L_C1_C2"] = L_C1_C2
+            unique_ar_df.at[index, "Ar_c"] = Ar_c
+            unique_ar_df.at[index, "Ar_e"] = Ar_e
+            unique_ar_df.at[index, "Ar_a"] = Ar_a
+            unique_ar_df.at[index, "Ar_b"] = Ar_b
+            unique_ar_df.at[index, "Ar_d"] = Ar_d
+            unique_ar_df.at[index, "Ar_f"] = Ar_f
+            unique_ar_df.at[index, "Ar_g"] = Ar_g
         except Exception as e:
-            print(f"[ERROR] Error occurred while processing {ar}: {e}")
+            print(f"[ERROR] Error occurred while processing Ar={ar}: {e}")
             continue
 
-    df.to_excel("output.xlsx", index=False)
+    # 加入 Sterimol
+    unique_ar_df = add_sterimol_to_df(unique_ar_df, log_folder)
+    report_index_problems(unique_ar_df, log_folder)
 
-    df = df.dropna()
-    if df.empty:
-        print("⚠️ 所有資料為 NaN，終止流程")
-        return df, [], {}
+    # ✅ 新增：過濾掉任何關鍵特徵為 NaN 的 Ar
+    essential_cols = [
+        "Ar_NBO_C2", "Ar_NBO_=O", "Ar_NBO_-O", "Ar_v_C=O", "Ar_I_C=O", "Ar_dp",
+        "Ar_polar", "Ar_LUMO", "Ar_HOMO", "L_C1_C2",
+        "Ar_Ster_L", "Ar_Ster_B1", "Ar_Ster_B5"
+    ]
+    before_drop = len(unique_ar_df)
+    unique_ar_df = unique_ar_df.dropna(subset=essential_cols)
+    after_drop = len(unique_ar_df)
+    print(f"🧹 Dropped {before_drop - after_drop} Ar rows with missing essential features")
 
-    df = add_sterimol_to_df(df, log_folder)
+    unique_ar_df.to_excel("unique_ar_features.xlsx", index=False)
+
+    # ========== STEP 3: 配對 Ar1 / Ar2 的特徵到主 df ==========
+    print(f"\n[STEP3] Merging Ar1 / Ar2 features into main dataframe")
+    df = df.merge(unique_ar_df.add_prefix("Ar1_"), left_on="Ar1", right_on="Ar1_Ar", how="left")
+    df = df.merge(unique_ar_df.add_prefix("Ar2_"), left_on="Ar2", right_on="Ar2_Ar", how="left")
+    df = df.drop(columns=["Ar1_Ar", "Ar2_Ar"])
+
     df.to_excel(output_path, index=False)
-    report_index_problems(df, log_folder)
 
-    # --- 判斷是否為 Ar1 + Ar2 配對形式 ---
-    if auto_pairing and "Ar1" in df.columns and "Ar2" in df.columns:
-        print(f"\n[STEP3] Detected Ar1 + Ar2 → 執行配對合併處理")
-        df_pair = reshape_ar1_ar2_pair(df)
-        df_pair.to_excel("paired_output.xlsx", index=False)
-        data = df_pair
-        features = [col for col in df_pair.columns if col.startswith("Ar1_") or col.startswith("Ar2_")]
-    else:
-        print(f"\n[STEP3] 單一芳基資料 → 使用原始資料建模")
-        data = df
-        features = [
-            'Ar_NBO_C2', 'Ar_NBO_=O', 'Ar_NBO_-O', 'Ar_v_C=O', 'Ar_I_C=O', 'Ar_dp',
-            'L_C1_C2', 'Ar_polar', 'Ar_LUMO', 'Ar_HOMO',
-            'Ar_Ster_L', 'Ar_Ster_B1', 'Ar_Ster_B5'
-        ]
+    # ========== STEP 4: 準備建模 ==========
+    print(f"\n[STEP4] Performing regression modeling")
 
-    print(f"\n[STEP4] 執行回歸建模")
-    data = data.dropna(subset=features + [target])
-    if data.empty:
+    features = [col for col in df.columns if col.startswith("Ar1_") or col.startswith("Ar2_")]
+    df = df.dropna(subset=features + [target])
+    if df.empty:
         print("⚠️ 無可用資料進行回歸")
         return df, [], {}
 
-    results, best_model = search_best_models(data, features=features, target=target,
+    results, best_model = search_best_models(df, features=features, target=target,
                                              max_features=5, r2_threshold=0.7,
                                              save_csv=True, csv_path="regression_search_results.csv", verbose=True)
 
     if best_model:
-        plot_best_regression(target, data, best_model, plot_path)
+        plot_best_regression(target, df, best_model, plot_path)
     else:
         print("⚠️ 沒有符合條件的模型，跳過繪圖")
 
     print(f"\n✅ Analysis complete!")
-    return data, results, best_model
+    return df, results, best_model
