@@ -12,17 +12,17 @@ It includes:
 
 ---
 
-## 🚀 Features
+## 🧠 What This Project Does
 
-✅ Automated extraction from Gaussian `.log` files  
-✅ Sterimol descriptors via `morfeus-ml`  
-✅ NBO charge parsing (C1–C2/O atoms)  
-✅ Dipole, HOMO-LUMO, polarizability, vibrational features  
-✅ Regression modeling using LOOCV (Q², R², RMSE)  
-✅ Visual regression plot and result export  
-✅ Compatibility with Ar1–Ar2 substituted azoarene systems  
+- Automated extraction from Gaussian `.log` files  
+- Sterimol descriptors via `morfeus-ml`  
+- NBO charge parsing (C1–C2/O atoms)  
+- Dipole, HOMO-LUMO, polarizability, vibrational features  
+- Regression modeling using LOOCV (Q², R², RMSE)  
+- Visual regression plot and result export  
+- Compatibility with Ar1–Ar2 substituted azoarene systems  
 
-## 📝 Usage
+## ⚙️ How to Use
 
 ### 1. Install dependencies
 
