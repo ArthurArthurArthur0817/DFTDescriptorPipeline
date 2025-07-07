@@ -1,46 +1,69 @@
-# DFTDescriptorPipeline Colab Case Studies
+# Examples for Quantum Descriptor Regression 🧪
 
-This repository includes four real-world case studies that illustrate how to use DFTDescriptorPipeline for quantum chemistry descriptor extraction and regression analysis.
-**Each case can be run directly in Google Colab.** Click any folder link below to open the corresponding example.
+This folder contains **example data and walkthroughs** to demonstrate how to use the quantum descriptor extraction and regression pipeline from this repository.
 
----
-
-## Case Study Overview
-
-* No code modifications needed—simply switch datasets or problem types.
-* All workflows start from quantum chemistry log files and end with ready-to-use regression models.
-* Each folder below contains a complete Colab notebook and required input data.
+It is designed to work directly with `extractor_regr.py` and the corresponding Jupyter notebooks (e.g., `azoarene.ipynb`, `indigo_aryl_alkyl.ipynb`, `indigo_diaryl.ipynb`, `heck_boronic_acids.ipynb`).
 
 ---
 
-### [1. Indigo Photoswitches: N,N'-Diaryl](indigo_diaryl/)
+## 📁 Folder Contents
 
-* Predict Z→E isomerization barriers for symmetric N,N'-diaryl indigo derivatives.
-* Uses electronic descriptors to achieve strong model performance.
-* Output includes feature tables and regression plots.
+```
+
+examples/
+├── azoarene/
+│   ├── azo\_data.xlsx             # Reaction rates and Ar1/Ar2 info
+│   └── logs/                     # Gaussian .log files for each Ar group
+│
+├── indigo\_diaryl/
+│   ├── diaryl\_data.xlsx
+│   └── logs/
+│
+├── indigo\_aryl\_alkyl/
+│   ├── indigo\_data.xlsx
+│   └── logs/
+│
+├── heck\_boronic\_acids/
+│   ├── heck\_data.xlsx
+│   └── logs/
+
+````
+
+---
+
+## 🧪 What You Can Do
+
+Each subfolder is an independent example. You can:
+
+1. Open the corresponding `.ipynb` notebook (e.g., `indigo_diaryl.ipynb`)
+2. Point to the Excel file and `logs/` folder inside the example directory
+3. Run the full pipeline using:
+
+```python
+from extractor_regr import run_full_pipeline
+
+run_full_pipeline(
+    log_folder='examples/indigo_diaryl/logs',
+    xlsx_path='examples/indigo_diaryl/diaryl_data.xlsx',
+    target='ln(kobs)',
+    output_path='final_output.xlsx',
+    plot_path='Regression_Plot.png'
+)
+````
 
 ---
 
-### [2. Indigo Photoswitches: N-Aryl-N'-Alkyl](indigo_aryl_alkyl/)
+## ✅ Example Output
 
-* Model isomerization barriers for unsymmetrical N-aryl-N'-alkyl indigo switches.
-* Combines steric (Sterimol L) and electronic descriptors for improved accuracy.
-* Output includes model metrics and visualizations.
+For each example, the script will generate:
 
----
-
-### [3. Azoarene Photoswitches](azoarene/)
-
-* Predict thermal isomerization rates of substituted azoarenes.
-* Employs both geometric (bond lengths) and electronic features.
-* Notebook outputs feature importance and predictive performance.
+* `final_output.xlsx` – merged descriptors + targets
+* `regression_search_results.csv` – all tested models
+* `Regression_Plot.png` – visualization of best regression fit
 
 ---
 
-### [4. Heck Boronic Acids](heck_boronic_acids/)
+## 📎 Notes
 
-* Predict reaction yields for para- and meta-substituted boronic acids in Heck coupling.
-* Features include dipole moment, polarizability, LUMO energy, and IR intensity.
-* Results include regression models and summary plots.
-
----
+* Gaussian `.log` files must contain NBO, SCF, dipole, and polarizability sections.
+* Ensure compound names in `.xlsx` match the corresponding `.log` filenames.
