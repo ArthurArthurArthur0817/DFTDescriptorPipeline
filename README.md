@@ -1,160 +1,90 @@
 # DFTDescriptorPipeline
 
-**DFTDescriptorPipeline** is a Python toolkit for automated extraction of molecular descriptors from quantum chemistry log files and streamlined regression analysis. It is designed for computational chemistry and machine learning practitioners to efficiently convert raw DFT output logs into feature-rich datasets and perform downstream property prediction tasks.
+A Python pipeline for automating descriptor extraction from Gaussian log files and performing regression modeling for reaction rate prediction.
 
-## Features
+## 🧠 Overview
+This tool extracts quantum chemistry descriptors (e.g., NBO charges, HOMO/LUMO, dipole moment, vibrational frequency, Sterimol parameters) from Gaussian `.log` files and merges them with an Excel dataset. It then performs regression modeling with LOOCV (leave-one-out cross-validation) to identify the best feature combinations for predicting a target variable (e.g., `ln(kobs)`).
 
-- **Automated Descriptor Extraction:**  
-  Parse Gaussian and other quantum chemistry log files to extract frequencies, NBO charges, and more.
-- **Modular Regression Workflow:**  
-  Build regression models (e.g., for property prediction) using extracted descriptors.
-- **Batch Processing:**  
-  Handle multiple files and molecules in a single workflow.
-- **Flexible Output:**  
-  Results are exported as clean CSV files for direct use in machine learning or statistical analysis.
-- **Colab-Friendly:**  
-  Run the pipeline end-to-end in Google Colab with minimal setup.
+## 🔧 Features
+- **Automatic morfeus installation** for Sterimol calculation
+- **Descriptor extraction** from Gaussian logs:
+  - HOMO / LUMO energies
+  - Dipole moment
+  - Polarizability
+  - NBO charges & bond analysis
+  - Vibration frequency and IR intensity of specific bonds
+  - Sterimol descriptors (L, B1, B5)
+- **Smart pairing and merging** of Ar1/Ar2 substituents
+- **Data cleaning & NaN filtering**
+- **LOOCV regression modeling** and model ranking
+- **Regression plot** with performance metrics
+- **Problem reporting** for molecules with incomplete features
 
----
+## 📁 Directory Structure
+```text
+├── descriptors/extractor_regr.py                               # Main pipeline script
+├── examples/azoarene/Azoarene.xlsx                             # Input Excel with Azoarene compound info
+├── examples/azoarene/logfiles/                                 # Folder containing .log files of Azoarene
+├── examples/heck_boronic_acids/Heck_boronic_acid.xlsx          # Input Excel with heck_boronic_acids compound info
+├── examples/heck_boronic_acids/logfiles/                       # Folder containing .log files of heck_boronic_acids
+├── examples/indigo_aryl_alkyl/N_aryl_N_alkyl_indigo            # Input Excel with N_aryl_N_alkyl_indigo compound info
+├── examples/indigo_aryl_alkyl/logfiles/                        # Folder containing .log files of indigo_aryl_alkyl
+├── examples/indigo_diaryl/NN_diaryl_indigo.xlsx                # Input Excel with NN_diaryl_indigo compound info
+├── examples/indigo_diaryl/logfiles/                            # Folder containing .log files of NN_diaryl_indigo
+````
 
-## Installation
+## 🏁 Quick Start
 
-The recommended way to use this package is via [Google Colab](https://colab.research.google.com/):
-
-### Colab Usage
-
-1. **Upload the Repository:**  
-   Download and unzip the repository on your computer, then upload all files to your Colab environment.
-
-2. **Install Required Packages:**  
-   In a Colab cell, install required Python packages:
-   ```python
-   !pip install pandas numpy openpyxl
-   ```
-
-3. **Upload Input Files:**
-   Upload your quantum chemistry log files (`*.log`) and Excel templates if needed.
-
----
-
-### Local Installation
-
-Clone the repository and install dependencies:
+### 1. Install dependencies
 
 ```bash
-git clone https://github.com/yourusername/DFTDescriptorPipeline.git
-cd DFTDescriptorPipeline
-pip install -r requirements.txt
+pip install pandas numpy matplotlib scikit-learn morfeus-ml
 ```
 
----
+> The script will auto-install `morfeus-ml` if missing.
 
-## Usage
+### 2. Prepare your data
 
-### Quickstart (Colab)
+* Put your `.log` files in a folder (e.g., `logfiles/`)
+* Your Excel file (e.g., `data.xlsx`) should include columns:
 
-1. **Import and Run Extraction**
+  * `Compound`, `Ar1`, `Ar2`, `ln(kobs)` or other target variable
 
-   ```python
-   from extractor_regr import batch_extract_and_save
-   batch_extract_and_save('/content/logs/', '/content/output/descriptors.csv')
-   ```
-
-2. **Perform Regression Analysis**
-
-   ```python
-   from regressor import run_regression_analysis
-   run_regression_analysis('/content/output/descriptors.csv')
-   ```
-
----
-
-## Main Components & Functions
-
-### `extractor_regr.py`
-
-* **Purpose:**
-  Extracts molecular descriptors from a batch of quantum chemistry log files and saves them as a CSV.
-* **Main Functions:**
-
-  * `batch_extract_and_save(input_dir, output_csv)`
-    Process all log files in the specified directory and write a structured descriptor table.
-  * `extract_frequencies(log_path)`
-    Extracts vibrational frequencies from a single log file.
-  * `extract_nbo_charges(log_path)`
-    Extracts Natural Bond Orbital (NBO) charges from a single log file.
-  * `extract_other_features(log_path)`
-    Additional feature extraction (e.g., dipole moments, orbital energies).
-
-### `regressor.py`
-
-* **Purpose:**
-  Builds and evaluates regression models (e.g., linear regression, random forest) using the extracted descriptors.
-* **Main Functions:**
-
-  * `run_regression_analysis(csv_path)`
-    Loads the descriptor dataset, splits data, trains a regression model, and reports results (e.g., MAE, R²).
-  * `feature_importance(model, X, y)`
-    Displays ranked feature importances.
-  * `plot_results(y_true, y_pred)`
-    Plots prediction vs actual values for visual assessment.
-
-### `examples/`
-
-* **DFTDescriptorPipeline/examples/**
-  Contains example input files and demo scripts for rapid onboarding.
-
----
-
-## Example Workflow
-
-#### 1. Upload log files to `/content/logs/` in Colab.
-
-#### 2. Run the batch extraction:
+### 3. Run the pipeline
 
 ```python
-from extractor_regr import batch_extract_and_save
-batch_extract_and_save('/content/logs/', '/content/descriptors.csv')
+from extractor_regr import run_full_pipeline
+
+run_full_pipeline(
+    log_folder='logfiles',
+    xlsx_path='data.xlsx',
+    target='ln(kobs)',
+    output_path='final_output.xlsx',
+    plot_path='Regression_Plot.png',
+    auto_pairing=True
+)
 ```
 
-#### 3. Perform regression analysis:
+## 📊 Output
 
-```python
-from regressor import run_regression_analysis
-run_regression_analysis('/content/descriptors.csv')
+* `final_output.xlsx`: Cleaned and merged features
+* `regression_search_results.csv`: LOOCV results of all feature combinations
+* `Regression_Plot.png`: Scatter plot of experimental vs predicted values
+* `problem_index_report.xlsx`: List of molecules with incomplete feature extraction
+
+## 📌 Notes
+
+* Requires Gaussian `.log` files with **NBO**, **polarizability**, **dipole**, and **frequency** information.
+* Atom indices are auto-parsed using NBO bonding rules.
+* Sterimol parameters use filtered `.xyz` files with specific atoms removed.
+
+## 🧪 Example Output (Best Model)
+
+```
+✅ Best model: ['Ar1_Ar_NBO_C2', 'Ar2_Ar_NBO_C2', 'Ar2_Ar_NBO_-O', 'Ar2_Ar_v_C=O', 'Ar2_Ar_Ster_L']
+Q² = 0.860 | R² = 0.896
 ```
 
----
+## 📜 License
 
-## Dependencies
-
-* Python 3.8+
-* pandas
-* numpy
-* openpyxl
-* (Optional: scikit-learn, matplotlib for regression/plotting)
-
-Install all dependencies with:
-
-```bash
-pip install pandas numpy openpyxl scikit-learn matplotlib
-```
-
----
-
-## Customization & Extension
-
-* **Add new descriptors:**
-  Modify `extractor_regr.py` to add functions that extract additional features from log files.
-* **Advanced regression models:**
-  Edit `regressor.py` to implement custom models or additional evaluation metrics.
-* **Pipeline integration:**
-  Integrate with Jupyter/Colab notebooks or external ML frameworks as needed.
-
----
-
-## License
-
-[MIT License](LICENSE)
-
----
+MIT License
