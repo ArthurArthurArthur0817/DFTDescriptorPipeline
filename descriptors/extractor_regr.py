@@ -502,6 +502,12 @@ def plot_best_regression(target, df, best_model, savepath='Regression_Plot.png')
     intercept = best_model['intercept']
     y_actual = df[target]
     X_values = df[X_columns].values
+
+    # ✅ 去掉含 NaN 的資料
+    mask = ~y_actual.isna() & ~X_values.isna().any(axis=1)
+    y_actual = y_actual[mask]
+    X_values = X_values[mask].values
+    
     y_pred = np.dot(X_values, coefficients) + intercept
     fig, ax = plt.subplots(figsize=(8, 7))
     ax.set_facecolor('w')
@@ -684,4 +690,5 @@ def run_full_pipeline(log_folder, xlsx_path, target="ln(kobs)",
         print("⚠️ 沒有符合條件的模型，跳過繪圖")
 
     print(f"\n✅ Analysis complete!")
+
     return df, results, best_model
