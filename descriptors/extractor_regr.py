@@ -690,21 +690,4 @@ def run_full_pipeline(log_folder, xlsx_path, target="ln(kobs)",
     return df, results, best_model
 
 
-@ArthurArthurArthur0817
-Comment
- 
-Leave a comment
- 
-Footer
-© 2025 GitHub, Inc.
-Footer navigation
-Terms
-Privacy
-Security
-Status
-Docs
-Contact
-Manage cookies
-Do not share my personal information
-extractor_regr.py
 
