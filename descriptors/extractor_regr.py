@@ -1,18 +1,3 @@
-Skip to content
- 
-Search Gists
-Search...
-All gists
-Back to GitHub
-@ArthurArthurArthur0817
-ArthurArthurArthur0817/extractor_regr.py
-Created 1 hour ago
-Code
-Revisions
-1
-Clone this repository at &lt;script src=&quot;https://gist.github.com/ArthurArthurArthur0817/106ff0862e822cd497bb9b0f6611c2f8.js&quot;&gt;&lt;/script&gt;
-<script src="https://gist.github.com/ArthurArthurArthur0817/106ff0862e822cd497bb9b0f6611c2f8.js"></script>
-extractor_regr.py
 # extractor_regr.py
 
 # ====== [Auto-install morfeus-ml if missing, and force restart Colab/Jupyter] ======
@@ -722,3 +707,4 @@ Contact
 Manage cookies
 Do not share my personal information
 extractor_regr.py
+
