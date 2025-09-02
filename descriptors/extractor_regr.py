@@ -500,17 +500,9 @@ def plot_best_regression(target, df, best_model, savepath='Regression_Plot.png')
     X_columns = best_model['features']
     coefficients = np.array(best_model['coefficients'])
     intercept = best_model['intercept']
-    
-    # 轉成數值，確保可以用 isnan
-    y_actual = pd.to_numeric(df[target], errors="coerce")
-    X_values = df[X_columns].apply(pd.to_numeric, errors="coerce")
 
-    # 去掉含 NaN 的資料
-    mask = ~y_actual.isna() & ~X_values.isna().any(axis=1)
-    y_actual = y_actual[mask]
-    X_values = X_values[mask].values   # 過濾後轉 numpy
-
-    print(f"原始筆數: {len(df)}, 過濾後有效資料: {len(y_actual)}")  # debug
+    y_actual = df[target] 
+    X_values = df[X_columns].values
     
     y_pred = np.dot(X_values, coefficients) + intercept
     fig, ax = plt.subplots(figsize=(8, 7))
@@ -696,6 +688,7 @@ def run_full_pipeline(log_folder, xlsx_path, target="ln(kobs)",
     print(f"\n✅ Analysis complete!")
 
     return df, results, best_model
+
 
 
 
