@@ -501,10 +501,26 @@ def plot_best_regression(target, df, best_model, savepath='Regression_Plot.png')
     coefficients = np.array(best_model['coefficients'])
     intercept = best_model['intercept']
 
+    # 取出實際值與特徵矩陣
     y_actual = df[target] 
     X_values = df[X_columns].values
-    
+
+    # ====== debug print ======
+    print("原始 df 筆數:", len(df))
+    print("X_values shape:", X_values.shape)
+    print("y_actual head:\n", y_actual.head())
+    print("X_values head:\n", X_values[:5])
+    # =========================
+
+    # 計算預測值
     y_pred = np.dot(X_values, coefficients) + intercept
+
+    # ====== debug print ======
+    print("y_pred length:", len(y_pred))
+    print("前 5 筆 y_pred:", y_pred[:5])
+    # =========================
+
+    # 繪圖
     fig, ax = plt.subplots(figsize=(8, 7))
     ax.set_facecolor('w')
     ax.plot(y_actual, y_actual, color='k')
@@ -523,6 +539,7 @@ def plot_best_regression(target, df, best_model, savepath='Regression_Plot.png')
     fig.tight_layout()
     plt.savefig(savepath, bbox_inches='tight')
     plt.show()
+
 
 
 
@@ -688,6 +705,7 @@ def run_full_pipeline(log_folder, xlsx_path, target="ln(kobs)",
     print(f"\n✅ Analysis complete!")
 
     return df, results, best_model
+
 
 
 
