@@ -501,14 +501,23 @@ def plot_best_regression(target, df, best_model, savepath='Regression_Plot.png')
     coefficients = np.array(best_model['coefficients'])
     intercept = best_model['intercept']
 
-    y_actual = df[target] 
+    y_actual = df[target]
     X_values = df[X_columns].values
     
     y_pred = np.dot(X_values, coefficients) + intercept
 
-    # 🔹 建立 DataFrame 並去除重複點
-    plot_df = pd.DataFrame({'y_actual': y_actual, 'y_pred': y_pred})
-    plot_df = plot_df.drop_duplicates()
+    # 🔹 建立包含所有資料的 DataFrame，同時加入作為判斷依據的 Compound, Ar1, Ar2 欄位
+    # 確保這些欄位存在於原始的 df 之中
+    plot_df = pd.DataFrame({
+        'Compound': df['Compound'],
+        'Ar1': df['Ar1'],
+        'Ar2': df['Ar2'],
+        'y_actual': y_actual, 
+        'y_pred': y_pred
+    })
+
+    # 🔹 根據 Compound, Ar1, Ar2 這三個欄位來去除重複的點
+    plot_df = plot_df.drop_duplicates(subset=['Compound', 'Ar1', 'Ar2'])
 
     fig, ax = plt.subplots(figsize=(8, 7))
     ax.set_facecolor('w')
@@ -524,7 +533,7 @@ def plot_best_regression(target, df, best_model, savepath='Regression_Plot.png')
     fig.text(0.55, 0.35, f'$R^2= {best_model["r2_full"]:.2f}$', fontsize=16)
     fig.text(0.55, 0.30, f'rmse = {best_model["rmse"]:.2f}', fontsize=16)
     fig.text(0.55, 0.25, f'$Q^2= {best_model["q2_loocv"]:.2f}$ (LOO)', fontsize=16)
-    fig.text(0.55, 0.20, f'{len(plot_df)} unique data points', fontsize=16, style='italic')  # 🔹 改成 unique 數量
+    fig.text(0.55, 0.20, f'{len(plot_df)} unique data points', fontsize=16, style='italic')
     fig.tight_layout()
     plt.savefig(savepath, bbox_inches='tight')
     plt.show()
@@ -693,6 +702,7 @@ def run_full_pipeline(log_folder, xlsx_path, target="ln(kobs)",
     print(f"\n✅ Analysis complete!")
 
     return df, results, best_model
+
 
 
 
