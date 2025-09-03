@@ -505,10 +505,15 @@ def plot_best_regression(target, df, best_model, savepath='Regression_Plot.png')
     X_values = df[X_columns].values
     
     y_pred = np.dot(X_values, coefficients) + intercept
+
+    # 🔹 建立 DataFrame 並去除重複點
+    plot_df = pd.DataFrame({'y_actual': y_actual, 'y_pred': y_pred})
+    plot_df = plot_df.drop_duplicates()
+
     fig, ax = plt.subplots(figsize=(8, 7))
     ax.set_facecolor('w')
-    ax.plot(y_actual, y_actual, color='k')
-    ax.scatter(y_actual, y_pred, edgecolor='b', facecolor='b', alpha=0.7)
+    ax.plot(plot_df['y_actual'], plot_df['y_actual'], color='k')
+    ax.scatter(plot_df['y_actual'], plot_df['y_pred'], edgecolor='b', facecolor='b', alpha=0.7)
     ax.set_ylabel(f'Predicted {target}', fontsize=18, color='k')
     ax.set_xlabel(f'Experimental {target}', fontsize=18, color='k')
     ax.spines['bottom'].set_color('k')
@@ -519,7 +524,7 @@ def plot_best_regression(target, df, best_model, savepath='Regression_Plot.png')
     fig.text(0.55, 0.35, f'$R^2= {best_model["r2_full"]:.2f}$', fontsize=16)
     fig.text(0.55, 0.30, f'rmse = {best_model["rmse"]:.2f}', fontsize=16)
     fig.text(0.55, 0.25, f'$Q^2= {best_model["q2_loocv"]:.2f}$ (LOO)', fontsize=16)
-    fig.text(0.55, 0.20, f'{len(y_actual)} data points', fontsize=16, style='italic')
+    fig.text(0.55, 0.20, f'{len(plot_df)} unique data points', fontsize=16, style='italic')  # 🔹 改成 unique 數量
     fig.tight_layout()
     plt.savefig(savepath, bbox_inches='tight')
     plt.show()
@@ -688,6 +693,7 @@ def run_full_pipeline(log_folder, xlsx_path, target="ln(kobs)",
     print(f"\n✅ Analysis complete!")
 
     return df, results, best_model
+
 
 
 
