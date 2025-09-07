@@ -536,12 +536,19 @@ def plot_best_regression(target, df, best_model, savepath='Regression_Plot.png')
     ax.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
     ax.xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
 
-    # 🔹 產生迴歸算式並自動換行
-    equation = f'{target} = ' + " + ".join([f"{c:.2f}({f})" for c, f in zip(coefficients, X_columns)]) + f' + {intercept:.2f}'
-    equation_wrapped = "\n".join(textwrap.wrap(equation, width=80))  # 每 80 字自動換行
+    # 🔹 產生迴歸算式
+    equation = f'{target} = ' + " + ".join(
+        [f"{c:.2f}({f})" for c, f in zip(coefficients, X_columns)]
+    ) + f' + {intercept:.2f}'
 
-    # 🔹 顯示在圖上方
-    fig.text(0.13, 0.95, equation_wrapped, fontsize=10, va="top", ha="left")
+    # 🔹 動態決定放置位置
+    if len(equation) > 80:
+        # 太長 → 放圖下方，自動換行
+        equation_wrapped = "\n".join(textwrap.wrap(equation, width=80))
+        fig.text(0.5, -0.05, equation_wrapped, fontsize=10, ha="center", va="top")
+    else:
+        # 不長 → 放圖上方
+        fig.text(0.13, 0.95, equation, fontsize=10, va="top", ha="left")
 
     # 顯示模型評估指標
     fig.text(0.55, 0.35, f'$R^2= {best_model["r2_full"]:.2f}$', fontsize=16)
@@ -718,6 +725,7 @@ def run_full_pipeline(log_folder, xlsx_path, target="ln(kobs)",
     print(f"\n✅ Analysis complete!")
 
     return df, results, best_model
+
 
 
 
