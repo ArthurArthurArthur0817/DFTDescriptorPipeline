@@ -29,6 +29,7 @@ from sklearn.preprocessing import StandardScaler
 from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
+import textwrap
 
 # If using morfeus, need to install it
 try:
@@ -506,8 +507,7 @@ def plot_best_regression(target, df, best_model, savepath='Regression_Plot.png')
     
     y_pred = np.dot(X_values, coefficients) + intercept
 
-    # 🔹 建立包含所有資料的 DataFrame，同時加入作為判斷依據的 Compound, Ar1, Ar2 欄位
-    # 確保這些欄位存在於原始的 df 之中
+    # 🔹 建立包含所有資料的 DataFrame
     plot_df = pd.DataFrame({
         'Compound': df['Compound'],
         'Ar1': df['Ar1'],
@@ -516,27 +516,43 @@ def plot_best_regression(target, df, best_model, savepath='Regression_Plot.png')
         'y_pred': y_pred
     })
 
-    # 🔹 根據 Compound, Ar1, Ar2 這三個欄位來去除重複的點
-    plot_df = plot_df.drop_duplicates(subset=['Compound', 'Ar1', 'Ar2'])
-
     fig, ax = plt.subplots(figsize=(8, 7))
     ax.set_facecolor('w')
+
+    # y=x 的對角線
     ax.plot(plot_df['y_actual'], plot_df['y_actual'], color='k')
-    ax.scatter(plot_df['y_actual'], plot_df['y_pred'], edgecolor='b', facecolor='b', alpha=0.7)
+
+    # 散點圖
+    ax.scatter(plot_df['y_actual'], plot_df['y_pred'], 
+               edgecolor='b', facecolor='b', alpha=0.7)
+
+    # 標籤
     ax.set_ylabel(f'Predicted {target}', fontsize=18, color='k')
     ax.set_xlabel(f'Experimental {target}', fontsize=18, color='k')
+
+    # 軸樣式
     ax.spines['bottom'].set_color('k')
     ax.spines['left'].set_color('k')
     ax.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
     ax.xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-    fig.text(0.13, 0.95, f'{target} = {" + ".join([f"{c:.2f}({f})" for c, f in zip(coefficients, X_columns)])} + {intercept:.2f}', fontsize=10)
+
+    # 🔹 產生迴歸算式並自動換行
+    equation = f'{target} = ' + " + ".join([f"{c:.2f}({f})" for c, f in zip(coefficients, X_columns)]) + f' + {intercept:.2f}'
+    equation_wrapped = "\n".join(textwrap.wrap(equation, width=80))  # 每 80 字自動換行
+
+    # 🔹 顯示在圖上方
+    fig.text(0.13, 0.95, equation_wrapped, fontsize=10, va="top", ha="left")
+
+    # 顯示模型評估指標
     fig.text(0.55, 0.35, f'$R^2= {best_model["r2_full"]:.2f}$', fontsize=16)
     fig.text(0.55, 0.30, f'rmse = {best_model["rmse"]:.2f}', fontsize=16)
     fig.text(0.55, 0.25, f'$Q^2= {best_model["q2_loocv"]:.2f}$ (LOO)', fontsize=16)
     fig.text(0.55, 0.20, f'{len(plot_df)} unique data points', fontsize=16, style='italic')
+
     fig.tight_layout()
     plt.savefig(savepath, bbox_inches='tight')
     plt.show()
+
 
 
 
@@ -702,6 +718,7 @@ def run_full_pipeline(log_folder, xlsx_path, target="ln(kobs)",
     print(f"\n✅ Analysis complete!")
 
     return df, results, best_model
+
 
 
 
